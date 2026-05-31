@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lucent",
+  "main": "src/workers.ts",
+  "compatibility_date": "2026-05-31",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "dist/lucent-angular/browser"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
