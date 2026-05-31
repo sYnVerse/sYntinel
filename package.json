@@ -9,8 +9,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "postinstall": "patch-package",
-    "deploy": "npm run build:prod && wrangler deploy",
-    "preview": "npm run build:prod && wrangler dev"
+    "deploy": "npm run build:prod && npx wrangler deploy",
+    "preview": "npm run build:prod && npx wrangler dev"
   },
   "private": true,
   "dependencies": {
@@ -41,7 +41,6 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "patch-package": "^8.0.1",
-    "typescript": "~5.7.2",
-    "wrangler": "^3.95.0"
+    "typescript": "~5.7.2"
   }
 }
