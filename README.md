@@ -1,4 +1,4 @@
-# [lucent.earth](https://lucent.earth)
+# [lucent](https://lucent.christran.io)
 
 Real-time 3D globe visualization of global service outages and infrastructure health.
 
@@ -92,6 +92,10 @@ src/
 proxy.conf.json                         # Dev proxy → Wrangler
 wrangler.jsonc                          # Cloudflare Workers config
 ```
+
+## Credits
+
+Forked from [**lucent.earth**](https://github.com/cppshane/lucent) by [cppshane](https://github.com/cppshane) — the original real-time globe visualization of global live streams and radio stations.
 
 ## License
 
