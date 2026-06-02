@@ -22,21 +22,17 @@ import { environment } from '../../environments/environment';
 import {
   mapPointMarkerId,
   type GlobeMapPoint,
-  isGlobeRadioPoint,
 } from '../globe-map.models';
-import { RadioBrowserService } from '../radio-browser.service';
-import type { GlobeRadioPoint, GlobeRadioSelection } from '../radio.models';
 import {
-  type GlobeStreamPoint,
-  type StreamDto,
-  toGlobeStreamPoint,
-} from '../stream.models';
+  type GlobeOutagePoint,
+  type OutageDto,
+  toGlobeOutagePoint,
+} from '../outage.models';
 import {
   createDayNightGlobeMaterial,
   sunSubSolarPoint,
 } from './day-night-globe';
 
-/** Minimal GeoJSON feature shape for Natural Earth admin dataset */
 interface GeoFeature {
   properties: { ISO_A2?: string };
   geometry: {
@@ -58,10 +54,6 @@ function easeOutQuint(t: number): number {
   return 1 - Math.pow(1 - t, 5);
 }
 
-/**
- * Preloaded globe visuals (textures + GeoJSON borders). Stream/radio markers load afterward
- * so the earth can appear without waiting on LucentApi or Radio Browser.
- */
 interface GlobeAssetPreload {
   dayTex: THREE.Texture;
   nightTex: THREE.Texture;
@@ -92,25 +84,16 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   @ViewChild('globeHost', { static: true })
   globeHost!: ElementRef<HTMLElement>;
 
-  @Output() streamSelected = new EventEmitter<GlobeStreamPoint>();
-  @Output() radioSelected = new EventEmitter<GlobeRadioSelection>();
-  /** Current stream catalogue (refreshed with `/api/streams`) for sidebar search. */
-  @Output() streamsCatalogChange = new EventEmitter<GlobeStreamPoint[]>();
+  @Output() outageSelected = new EventEmitter<GlobeOutagePoint>();
+  @Output() outagesCatalogChange = new EventEmitter<GlobeOutagePoint[]>();
 
   @Input() sidebarOpen = false;
-  /** While true, globe width follows inset immediately (sidebar drag resize). */
   @Input() @HostBinding('class.globe-inset-snap') sidebarInsetSnap = false;
-  /** Corner mini-globe: fixed size, no zoom/rotate (Focus mode). */
   @Input() @HostBinding('class.globe-view--focus') focusMode = false;
-  @Input() selectedStream: GlobeStreamPoint | null = null;
-  /** Sidebar radio selection — used to fly the camera to the station. */
-  @Input() selectedRadio: GlobeRadioSelection | null = null;
-  /** First-load `?stream=` login; matched after streams HTTP returns */
-  @Input() initialStreamQuery: string | null = null;
-  /** First-load `?radio=` station UUID */
-  @Input() initialRadioQuery: string | null = null;
+  @Input() selectedOutage: GlobeOutagePoint | null = null;
+  @Input() currentSimulation = 'none';
+  @Input() initialOutageQuery: string | null = null;
 
-  /** Shown until assets + WebGL layers are ready; intro clock starts on the next frames after hide. */
   globeLoading = true;
 
   private globe: GlobeInstance | null = null;
@@ -119,81 +102,32 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private countryFeatures: GeoFeature[] | null = null;
   private borderPaths: BorderPath[] | null = null;
 
-  /**
-   * Closest zoom allowed (globe.gl POV `altitude`; smaller = closer). No tile map — this
-   * replaces the old map-mode threshold as a hard stop for zoom and interaction.
-   */
   private readonly minCameraAltitude = 0.006;
-  /** Camera distance in globe radii; larger = more zoomed out */
   private readonly initialGlobeAltitude = 2.65;
-  /** OrbitControls idle spin — default sidebar view. */
   private readonly orbitAutoRotateSpeedDefault = 0.04;
-  /** Faster idle spin in Focus mini-globe (zoomed out — needs visible motion). */
   private readonly orbitAutoRotateSpeedFocus = 0.15;
-  /** Animate back to `initialGlobe*` when entering Focus (matches first-visit framing). */
   private readonly focusModeInitialViewTransitionMs = 700;
   private readonly selectedFocusAltitude = 0.42;
   private readonly selectedFocusTransitionMs = 900;
   private readonly markerRadiusMax = 0.28;
-  /** Angular radius (deg) at `minCameraAltitude`; keeps bars slim when fully zoomed in. */
   private readonly markerRadiusMin = 0.0022;
   private readonly markerHoverScale = 1.45;
-  /** Invisible pick mesh radius/height vs visible bar (easier hover/click). */
   private markerHitTargetRadiusFactor = 2.85;
   private markerHitTargetHeightFactor = 1.12;
   private readonly markerHitTargetRadiusFactorFinePointer = 2.85;
   private readonly markerHitTargetHeightFactorFinePointer = 1.12;
-  /** Larger on touch / hybrid devices — fat-finger targets without widening mouse-only overlap. */
   private readonly markerHitTargetRadiusFactorCoarsePointer = 5;
   private readonly markerHitTargetHeightFactorCoarsePointer = 1.5;
-  private readonly streamMarkerVisibleName = 'streamMarkerVisible';
-  private readonly streamMarkerHitName = 'streamMarkerHit';
-  /** Cylinder length (`pointAltitude` × globe radius); hybrid linear / log (see viewerCountToPointAltitude) */
+  private readonly streamMarkerVisibleName = 'outageMarkerVisible';
+  private readonly streamMarkerHitName = 'outageMarkerHit';
   private readonly markerAltitudeMin = 0.003;
-  /**
-   * Desired ceiling for bar `pointAltitude`; actual max is also capped by focus zoom so the
-   * camera never sits inside the tallest cylinder (see `maxPointAltitudeForFocusZoom`).
-   */
   private readonly markerAltitudeMax = 0.5;
-  /** Gap (globe-relative, same units as POV `altitude`) between bar top and camera when focused */
   private readonly markerAltitudeFocusClearance = 0.045;
-  /** Above this viewer count, bar height stays at `markerAltitudeMax` (log segment cap) */
-  private readonly markerViewersAltitudeCap = 250_000;
-  /** Linear cylinder scaling from 0 viewers through this count (inclusive). */
-  private readonly markerAltitudeLinearViewerCeiling = 1000;
-  /**
-   * At `markerAltitudeLinearViewerCeiling` viewers, height has reached this fraction of
-   * the full [min, max] band; everything above uses log₁₀ up to `markerViewersAltitudeCap`.
-   */
-  private readonly markerAltitudeLinearBandFraction = 0.78;
-  /** Twitch purple — base pixels pass `globeBloomThreshold` with emissive. */
-  private readonly streamMarkerColorTwitch = 'rgba(158, 95, 255, 1)';
-  private readonly streamMarkerHoverColorTwitch = 'rgba(200, 160, 255, 0.99)';
-  /** EarthCam YouTube — red glow. */
-  private readonly streamMarkerColorYoutube = 'rgba(255, 72, 72, 1)';
-  private readonly streamMarkerHoverColorYoutube = 'rgba(255, 150, 140, 0.99)';
-  /** Kick — green glow (Gemini-geolocated IRL). */
-  private readonly streamMarkerColorKick = 'rgba(64, 220, 130, 1)';
-  private readonly streamMarkerHoverColorKick = 'rgba(150, 255, 200, 0.99)';
-  /** Radio markers: short white cylinders, narrower than stream bars. */
-  private readonly radioMarkerRadiusScale = 0.38;
-  /** Globe-radius fraction for fixed radio cylinder height (streams scale with viewers). */
-  private readonly radioPointAltitude = 0.0048;
-  private readonly radioMarkerColor = 'rgba(248, 248, 252, 1)';
-  private readonly radioMarkerHoverColor = 'rgba(255, 255, 255, 1)';
-  private readonly radioMarkerEmissiveIntensity = 0.88;
-  private readonly radioMarkerHoverEmissiveIntensity = 1.12;
-  /**
-   * three-globe uses MeshLambertMaterial for stream cylinders. Emissive brings luminance
-   * over the bloom threshold; hover tint is already bright — use a lower intensity there.
-   */
   private readonly streamMarkerEmissiveIntensity = 1.05;
   private readonly streamMarkerHoverEmissiveIntensity = 0.68;
-  /** Initial focal point (Americas — Western Hemisphere) */
   private readonly initialGlobeLat = 28;
   private readonly initialGlobeLng = -92;
   private readonly rotateDelayMs = 1250;
-  /** Matches globe.gl defaults when `animateIn` was true (scale 600ms, spin 1200ms). */
   private readonly introScaleDurationMs = 600;
   private readonly introRotationDurationMs = 1200;
   private introAnimationActive = false;
@@ -206,67 +140,38 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private hoveredMarkerId: string | null = null;
 
   private bloomConfigured = false;
-  /** Bloom pass — disabled in Focus mode so EffectComposer preserves transparent clear (no dark ring). */
   private globeBloomPass: InstanceType<typeof UnrealBloomPass> | null = null;
-  /**
-   * UnrealBloom uses screen luminance. Day texture must peak *below* `globeBloomThreshold`
-   * (after `globeDayTextureBloomCap`); Twitch purple + border lines sit a bit above after lighting.
-   * If glow disappears, lower threshold slightly; if clouds bloom again, lower the day cap.
-   */
   private readonly globeDayTextureBloomCap = 0.28;
   private readonly globeBloomStrength = 0.32;
   private readonly globeBloomRadius = 0.55;
   private readonly globeBloomThreshold = 0.34;
-  /** globe.gl built-in limb glow (GlowMesh); tuned for black background + bloom. */
   private readonly globeAtmosphereColor = 'rgba(255, 255, 255, 0.42)';
-  /** Thickness in globe-radius units (library default 0.15). */
   private readonly globeAtmosphereAltitude = 0.04;
-  /**
-   * Focus mode: bloom off — day texture is normally capped at `globeDayTextureBloomCap` (0.28) so
-   * clouds don’t bloom; without bloom that cap leaves the planet very dark. Raise cap in Focus only.
-   */
   private readonly focusGlobeDayTextureCap = 0.98;
-  /** Extra multiplier after mix (night + day). */
   private readonly focusGlobeLuminanceGain = 1.72;
 
   private readonly geoJsonUrl =
     'https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson';
-  /**
-   * Equirectangular day + night (NASA Blue Marble + night lights), bundled under `public/globe/`.
-   * Blended with a real-time terminator (see globe.gl day-night-cycle example).
-   */
   private readonly globeDayTextureUrl = '/globe/nasa-blue-marble.jpg';
   private readonly globeNightTextureUrl = '/globe/nasa-earth-at-night.jpg';
 
-  private streamPoints: GlobeStreamPoint[] = [];
-  private radioPoints: GlobeRadioPoint[] = [];
-  /** Poll LucentApi for live streams and refresh markers (see `startStreamsRefreshTimer`). */
-  private readonly streamsRefreshIntervalMs = 60_000;
-  private streamsRefreshIntervalId: ReturnType<typeof setInterval> | null = null;
-  /** Radio catalogue changes slowly — refresh occasionally. */
-  private readonly radioRefreshIntervalMs = 3_600_000;
-  private radioRefreshIntervalId: ReturnType<typeof setInterval> | null = null;
+  private outagePoints: GlobeOutagePoint[] = [];
+  private outagesRefreshIntervalMs = 30_000;
+  private outagesRefreshIntervalId: ReturnType<typeof setInterval> | null = null;
   private dayNightMaterial: THREE.ShaderMaterial | null = null;
   private dayNightRaf = 0;
   private currentAltitude = this.initialGlobeAltitude;
   private lastFocusedMarkerId: string | null = null;
-  private initialStreamHandled = false;
-  private initialRadioHandled = false;
-  /** First streams HTTP finished (so `?stream=` can resolve or be abandoned). */
-  private streamsInitialFetchCompleted = false;
-  /** First radio search finished (so `?radio=` can resolve or be abandoned). */
-  private radioInitialFetchCompleted = false;
+  private initialOutageHandled = false;
+  private outagesInitialFetchCompleted = false;
 
   private layoutObserver: ResizeObserver | null = null;
   private layoutSyncRaf = 0;
   private readonly windowResizeHandler = (): void => this.scheduleGlobeLayoutSync();
-  /** Shared cylinder body (three-globe points use the same layout). */
   private streamCylinderSharedGeometry: THREE.BufferGeometry | null = null;
-  /** Shared invisible material for pick cylinders (`visible` stays true so Raycaster hits them). */
   private streamMarkerHitMaterial: THREE.MeshBasicMaterial | null = null;
   private readonly tmpGlobeCenter = new THREE.Vector3();
 
-  /** Coalesce resize / CSS width transitions to one WebGL setSize per frame */
   private scheduleGlobeLayoutSync(): void {
     if (!this.alive) return;
     if (this.layoutSyncRaf) return;
@@ -279,7 +184,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   constructor(
     private readonly ngZone: NgZone,
     private readonly http: HttpClient,
-    private readonly radioBrowser: RadioBrowserService,
   ) {}
 
   ngAfterViewInit(): void {
@@ -289,7 +193,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     this.applyOrbitPolicies();
     this.syncSelectedMapFocus();
-    if (changes['selectedStream'] || changes['selectedRadio']) {
+    if (changes['selectedOutage']) {
       queueMicrotask(() => this.refreshMapMarkersOnGlobe());
     }
     if (changes['sidebarOpen'] || changes['focusMode']) {
@@ -306,12 +210,14 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
         }
       });
     }
+    if (changes['currentSimulation'] && !changes['currentSimulation'].firstChange) {
+      void this.fetchAndApplyOutages(false);
+    }
   }
 
   ngOnDestroy(): void {
     this.alive = false;
-    this.stopStreamsRefreshTimer();
-    this.stopRadioRefreshTimer();
+    this.stopOutagesRefreshTimer();
     if (this.dayNightRaf) cancelAnimationFrame(this.dayNightRaf);
     this.dayNightRaf = 0;
     this.dayNightMaterial = null;
@@ -363,10 +269,8 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       this.borderPaths = preload.borderPaths;
       this.instantiateGlobe(el, preload);
       this.syncSelectedMapFocus();
-      void this.fetchAndApplyStreams(true);
-      void this.fetchAndApplyRadio(true);
-      this.startStreamsRefreshTimer();
-      this.startRadioRefreshTimer();
+      void this.fetchAndApplyOutages(true);
+      this.startOutagesRefreshTimer();
     });
   }
 
@@ -411,91 +315,56 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     };
   }
 
-  /** Loads `/api/streams` and updates markers. `isInitial` gates `?stream=` deep-link resolution. */
-  private async fetchAndApplyStreams(isInitial: boolean): Promise<void> {
+  private async fetchAndApplyOutages(isInitial: boolean): Promise<void> {
     if (!this.alive) return;
+    const url = `${environment.outagesUrl}?simulate=${encodeURIComponent(this.currentSimulation)}`;
     const rows = await firstValueFrom(
-      this.http.get<StreamDto[]>(environment.streamsUrl).pipe(
+      this.http.get<OutageDto[]>(url).pipe(
         catchError((err) => {
-          console.error('Streams API failed:', err);
-          return of([] as StreamDto[]);
+          console.error('Outages API failed:', err);
+          return of([] as OutageDto[]);
         }),
       ),
     );
     if (!this.alive) return;
-    this.streamPoints = this.streamDtosToPoints(rows);
-    if (isInitial) this.streamsInitialFetchCompleted = true;
-    this.ngZone.run(() => this.streamsCatalogChange.emit(this.streamPoints.slice()));
+    this.outagePoints = this.outageDtosToPoints(rows);
+    if (isInitial) this.outagesInitialFetchCompleted = true;
+    this.ngZone.run(() => this.outagesCatalogChange.emit(this.outagePoints.slice()));
     if (this.globe) {
       this.refreshMapMarkersOnGlobe();
       this.syncSelectedMapFocus();
     }
-    this.tryEmitInitialStreamQuery();
+    this.tryEmitInitialOutageQuery();
   }
 
-  /** Loads Radio Browser search and updates markers. `isInitial` gates `?radio=` deep-link resolution. */
-  private async fetchAndApplyRadio(isInitial: boolean): Promise<void> {
-    if (!this.alive) return;
-    const rows = await firstValueFrom(this.radioBrowser.searchStationsWithGeo());
-    if (!this.alive) return;
-    this.radioPoints = rows;
-    if (isInitial) this.radioInitialFetchCompleted = true;
-    if (this.globe) {
-      this.refreshMapMarkersOnGlobe();
-      this.syncSelectedMapFocus();
-    }
-    void this.tryEmitInitialRadioQuery();
-  }
-
-  private streamDtosToPoints(rows: StreamDto[]): GlobeStreamPoint[] {
+  private outageDtosToPoints(rows: OutageDto[]): GlobeOutagePoint[] {
     return rows
-      .map((r) => toGlobeStreamPoint(r))
-      .filter((p): p is GlobeStreamPoint => p !== null);
+      .map((r) => toGlobeOutagePoint(r))
+      .filter((p): p is GlobeOutagePoint => p !== null);
   }
 
-  private startStreamsRefreshTimer(): void {
-    this.stopStreamsRefreshTimer();
-    this.streamsRefreshIntervalId = setInterval(() => {
+  private startOutagesRefreshTimer(): void {
+    this.stopOutagesRefreshTimer();
+    this.outagesRefreshIntervalId = setInterval(() => {
       if (!this.alive || !this.globe) return;
-      void this.refreshStreamsFromApi();
-    }, this.streamsRefreshIntervalMs);
+      void this.refreshOutagesFromApi();
+    }, this.outagesRefreshIntervalMs);
   }
 
-  private stopStreamsRefreshTimer(): void {
-    if (this.streamsRefreshIntervalId !== null) {
-      clearInterval(this.streamsRefreshIntervalId);
-      this.streamsRefreshIntervalId = null;
+  private stopOutagesRefreshTimer(): void {
+    if (this.outagesRefreshIntervalId !== null) {
+      clearInterval(this.outagesRefreshIntervalId);
+      this.outagesRefreshIntervalId = null;
     }
   }
 
-  private startRadioRefreshTimer(): void {
-    this.stopRadioRefreshTimer();
-    this.radioRefreshIntervalId = setInterval(() => {
-      if (!this.alive || !this.globe) return;
-      void this.refreshRadioFromApi();
-    }, this.radioRefreshIntervalMs);
-  }
-
-  private stopRadioRefreshTimer(): void {
-    if (this.radioRefreshIntervalId !== null) {
-      clearInterval(this.radioRefreshIntervalId);
-      this.radioRefreshIntervalId = null;
-    }
-  }
-
-  private async refreshRadioFromApi(): Promise<void> {
-    await this.fetchAndApplyRadio(false);
-  }
-
-  private async refreshStreamsFromApi(): Promise<void> {
-    await this.fetchAndApplyStreams(false);
+  private async refreshOutagesFromApi(): Promise<void> {
+    await this.fetchAndApplyOutages(false);
   }
 
   private instantiateGlobe(el: HTMLElement, preload: GlobeAssetPreload): void {
     this.globe = new Globe(el, {
       waitForGlobeReady: true,
-      // Library tweens start when `globeImageUrl` is null (sync onReady); long sync digests then
-      // advance Tween time in one step. We preload, then run the same motion in `dayNightTick`.
       animateIn: false,
       rendererConfig: {
         alpha: true,
@@ -511,7 +380,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     const globe = this.globe;
     (globalThis as unknown as { globe?: GlobeInstance }).globe = globe;
 
-    globe.backgroundColor('#000000');
+    globe.backgroundColor('rgba(0,0,0,0)');
     globe.showGraticules(false);
     globe.showGlobe(true);
     globe.globeImageUrl(null as unknown as string);
@@ -578,12 +447,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       mat.uniforms['globeRotation'].value.set(pov.lng, pov.lat);
       globe.globeMaterial(mat);
 
-      /*
-       * Defer non-focus atmosphere / bloom / brightness to after globe.gl finishes internal setup.
-       * Synchronous apply here often leaves the default thick atmosphere limb until something
-       * (e.g. exiting Focus mode) calls applyFocusModeRendering again — same fix as focusMode
-       * changes, which already use queueMicrotask.
-       */
       queueMicrotask(() => {
         if (!this.alive || !this.globe) return;
         this.applyFocusModeRendering();
@@ -603,8 +466,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       this.syncGlobeLayout();
       this.refreshMapMarkersOnGlobe();
 
-      // Initial pose; clock starts in `scheduleRevealGlobeAndStartIntro` after loading UI peels away
-      // so elapsed time is not swallowed by the same long task / first composite.
       const scene = globe.scene();
       scene.scale.setScalar(1e-6);
       scene.setRotationFromAxisAngle(this.introRotAxis, Math.PI * 2);
@@ -626,10 +487,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     );
   }
 
-  /**
-   * Drop the loading layer after the browser has painted idle frames, force one WebGL draw,
-   * then arm the intro so `performance.now()` deltas match visible animation frames.
-   */
   private scheduleRevealGlobeAndStartIntro(globe: GlobeInstance): void {
     requestAnimationFrame(() => {
       if (!this.alive) return;
@@ -656,15 +513,9 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     const r = globe.renderer();
     const dpr =
       typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    // Retina-class without 2–3× fill-rate of uncapped DPR
     r.setPixelRatio(Math.min(dpr, 1.5));
   }
 
-  /**
-   * Focus mode: transparent clear, no atmosphere halo, no border paths (they sit above the
-   * surface and bloom as a dark ring), and bloom disabled so EffectComposer keeps alpha.
-   */
-  /** Fly to the same POV as first load — used when entering Focus after zooming on the main globe. */
   private resetGlobeToInitialViewForFocus(): void {
     if (!this.globe || !this.focusMode) return;
     this.globe.pointOfView(
@@ -686,10 +537,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     this.applyFocusGlobeBrightness();
   }
 
-  /**
-   * Updates uniforms on the **live** globe material from globe.gl — `this.dayNightMaterial` can
-   * diverge from `globe.globeMaterial()` after internal updates, so edits would be no-ops.
-   */
   private applyFocusGlobeBrightness(): void {
     if (!this.globe) return;
     const mat = this.globe.globeMaterial() as THREE.ShaderMaterial;
@@ -782,7 +629,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     this.applyOrbitPolicies();
   }
 
-  /** Sun + optional globe build-in (see `animateIn: false` + `stepGlobeIntroAnimation`). */
   private dayNightTick = (): void => {
     if (!this.alive) return;
     this.dayNightRaf = requestAnimationFrame(this.dayNightTick);
@@ -819,10 +665,8 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
 
     const size = new THREE.Vector2();
     globe.renderer().getSize(size);
-    // Bloom at reduced res — main cost is extra fullscreen passes
     size.multiplyScalar(0.36);
 
-    // Real glow comes from bloom, not thick line stacking.
     const bloomPass = new UnrealBloomPass(
       size,
       this.globeBloomStrength,
@@ -844,7 +688,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     return this.streamCylinderSharedGeometry;
   }
 
-  /** Same convention as three-globe `polar2Cartesian` (globe radius R, altitude as fraction of R). */
   private streamPolarToPosition(
     lat: number,
     lng: number,
@@ -875,7 +718,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     return this.streamMarkerHitMaterial;
   }
 
-  /** Touch / stylus-primary devices get a wider invisible cylinder (see `updateMapMarkerGroup`). */
   private configureMarkerHitTargets(): void {
     this.markerHitTargetRadiusFactor = this.markerHitTargetRadiusFactorFinePointer;
     this.markerHitTargetHeightFactor = this.markerHitTargetHeightFactorFinePointer;
@@ -886,18 +728,13 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     }
   }
 
-  /** Wider/taller invisible cylinder for picking; visible bar is a child (globe.gl resolves `__data` on the group). */
   private createMapMarkerGroup(d: GlobeMapPoint): THREE.Group {
     const group = new THREE.Group();
     const geom = this.getStreamCylinderGeometry();
     const hit = new THREE.Mesh(geom, this.getStreamMarkerHitMaterial());
     hit.name = this.streamMarkerHitName;
     const visMat = new THREE.MeshLambertMaterial({ transparent: false });
-    if (isGlobeRadioPoint(d)) {
-      this.applyRadioMarkerAppearance(visMat, d);
-    } else {
-      this.applyStreamMarkerAppearance(visMat, d);
-    }
+    this.applyOutageMarkerAppearance(visMat, d);
     const vis = new THREE.Mesh(geom, visMat);
     vis.name = this.streamMarkerVisibleName;
     group.add(hit);
@@ -905,58 +742,45 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     return group;
   }
 
-  /** Hover or current sidebar selection — keeps glow on the active marker. */
-  private streamMarkerHighlighted(d: GlobeStreamPoint): boolean {
-    return (
-      d.channelLogin === this.hoveredMarkerId ||
-      (this.selectedStream !== null &&
-        d.channelLogin === this.selectedStream.channelLogin)
-    );
-  }
-
-  private radioMarkerHighlighted(d: GlobeRadioPoint): boolean {
+  private outageMarkerHighlighted(d: GlobeOutagePoint): boolean {
     return (
       d.markerId === this.hoveredMarkerId ||
-      (this.selectedRadio !== null &&
-        d.markerId === this.selectedRadio.station.markerId)
+      (this.selectedOutage !== null &&
+        d.markerId === this.selectedOutage.markerId)
     );
   }
 
-  private applyRadioMarkerAppearance(
+  private applyOutageMarkerAppearance(
     mat: THREE.MeshLambertMaterial,
-    d: GlobeRadioPoint,
+    d: GlobeOutagePoint,
   ): void {
-    const hi = this.radioMarkerHighlighted(d);
-    mat.color.set(hi ? this.radioMarkerHoverColor : this.radioMarkerColor);
-    mat.emissive.copy(mat.color);
-    mat.emissiveIntensity = hi
-      ? this.radioMarkerHoverEmissiveIntensity
-      : this.radioMarkerEmissiveIntensity;
-  }
+    const highlighted = this.outageMarkerHighlighted(d);
+    
+    // Status colors
+    const colorDown = 'rgba(239, 68, 68, 1)';      // Vibrant red
+    const colorDegraded = 'rgba(245, 158, 11, 1)';  // Vibrant orange
+    const colorUp = 'rgba(16, 185, 129, 1)';        // Clean green
+    
+    const hoverDown = 'rgba(255, 100, 100, 0.99)';
+    const hoverDegraded = 'rgba(255, 200, 80, 0.99)';
+    const hoverUp = 'rgba(120, 255, 180, 0.99)';
 
-  private applyStreamMarkerAppearance(
-    mat: THREE.MeshLambertMaterial,
-    d: GlobeStreamPoint,
-  ): void {
-    const highlighted = this.streamMarkerHighlighted(d);
-    const p = (d.platform ?? 'twitch').toLowerCase();
-    const base =
-      p === 'youtube'
-        ? this.streamMarkerColorYoutube
-        : p === 'kick'
-          ? this.streamMarkerColorKick
-          : this.streamMarkerColorTwitch;
-    const hi =
-      p === 'youtube'
-        ? this.streamMarkerHoverColorYoutube
-        : p === 'kick'
-          ? this.streamMarkerHoverColorKick
-          : this.streamMarkerHoverColorTwitch;
+    let base = colorUp;
+    let hi = hoverUp;
+    
+    if (d.status === 'down') {
+      base = colorDown;
+      hi = hoverDown;
+    } else if (d.status === 'degraded') {
+      base = colorDegraded;
+      hi = hoverDegraded;
+    }
+
     mat.color.set(highlighted ? hi : base);
     mat.emissive.copy(mat.color);
     mat.emissiveIntensity = highlighted
       ? this.streamMarkerHoverEmissiveIntensity
-      : this.streamMarkerEmissiveIntensity;
+      : (d.status === 'down' ? 1.5 : this.streamMarkerEmissiveIntensity);
   }
 
   private updateMapMarkerGroup(
@@ -973,11 +797,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     if (!vis || !hit) return;
 
     const mat = vis.material as THREE.MeshLambertMaterial;
-    if (isGlobeRadioPoint(d)) {
-      this.applyRadioMarkerAppearance(mat, d);
-    } else {
-      this.applyStreamMarkerAppearance(mat, d);
-    }
+    this.applyOutageMarkerAppearance(mat, d);
 
     const baseR = this.currentMarkerBaseRadius();
     const hoverR = Math.min(
@@ -994,40 +814,24 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     }
     group.lookAt(this.tmpGlobeCenter);
 
-    if (isGlobeRadioPoint(d)) {
-      const rDeg = this.radioMarkerHighlighted(d) ? hoverR : baseR;
-      const rs = Math.min(30, rDeg) * pxPerDeg * this.radioMarkerRadiusScale;
-      const h = Math.max(this.radioPointAltitude * globeRadius, 0.08);
-      vis.scale.set(rs, rs, h);
-      hit.scale.set(
-        rs * this.markerHitTargetRadiusFactor,
-        rs * this.markerHitTargetRadiusFactor,
-        h * this.markerHitTargetHeightFactor,
-      );
-    } else {
-      const alt = this.viewerCountToPointAltitude(d.viewerCount);
-      const rDeg = this.streamMarkerHighlighted(d) ? hoverR : baseR;
-      const rs = Math.min(30, rDeg) * pxPerDeg;
-      const h = Math.max(alt * globeRadius, 0.1);
-      vis.scale.set(rs, rs, h);
-      hit.scale.set(
-        rs * this.markerHitTargetRadiusFactor,
-        rs * this.markerHitTargetRadiusFactor,
-        h * this.markerHitTargetHeightFactor,
-      );
-    }
-  }
-
-  private mergeMapPoints(): GlobeMapPoint[] {
-    return [...this.streamPoints, ...this.radioPoints];
+    const alt = this.latencyToPointAltitude(d.latencyMs);
+    const rDeg = this.outageMarkerHighlighted(d) ? hoverR : baseR;
+    const rs = Math.min(30, rDeg) * pxPerDeg;
+    const h = Math.max(alt * globeRadius, 0.1);
+    
+    vis.scale.set(rs, rs, h);
+    hit.scale.set(
+      rs * this.markerHitTargetRadiusFactor,
+      rs * this.markerHitTargetRadiusFactor,
+      h * this.markerHitTargetHeightFactor,
+    );
   }
 
   private refreshMapMarkersOnGlobe(): void {
     if (!this.alive || !this.globe) return;
-    this.globe.customLayerData(this.mergeMapPoints());
+    this.globe.customLayerData(this.outagePoints);
   }
 
-  /** OrbitControls: Focus = drag rotate only (no zoom/pan); else sidebar + auto-rotate. */
   private applyOrbitPolicies(): void {
     const c = this.globe?.controls?.() as
       | {
@@ -1056,57 +860,25 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     }
   }
 
-  private tryEmitInitialStreamQuery(): void {
-    if (this.initialStreamHandled || !this.initialStreamQuery?.trim()) return;
-    const q = this.initialStreamQuery.trim().toLowerCase();
-    const match = this.streamPoints.find(
-      (p) => p.channelLogin.toLowerCase() === q,
+  private tryEmitInitialOutageQuery(): void {
+    if (this.initialOutageHandled || !this.initialOutageQuery?.trim()) return;
+    const q = this.initialOutageQuery.trim().toLowerCase();
+    const match = this.outagePoints.find(
+      (o) => o.markerId.toLowerCase() === q,
     );
     if (match) {
-      this.initialStreamHandled = true;
-      this.ngZone.run(() => this.streamSelected.emit(match));
+      this.initialOutageHandled = true;
+      this.ngZone.run(() => this.outageSelected.emit(match));
       return;
     }
-    if (!this.streamsInitialFetchCompleted) return;
-    this.initialStreamHandled = true;
+    if (!this.outagesInitialFetchCompleted) return;
+    this.initialOutageHandled = true;
   }
 
-  private async tryEmitInitialRadioQuery(): Promise<void> {
-    if (this.initialRadioHandled || !this.initialRadioQuery?.trim()) return;
-    const q = this.initialRadioQuery.trim().toLowerCase();
-    const match = this.radioPoints.find(
-      (p) => p.stationuuid.toLowerCase() === q,
-    );
-    if (!match) {
-      if (!this.radioInitialFetchCompleted) return;
-      this.initialRadioHandled = true;
-      return;
-    }
-    const playUrl = await firstValueFrom(
-      this.radioBrowser.notifyStationClick(match.stationuuid),
-    );
-    if (!this.alive) return;
-    this.initialRadioHandled = true;
-    this.ngZone.run(() =>
-      this.radioSelected.emit({ station: match, playUrl }),
-    );
+  private onMapMarkerClicked(p: GlobeMapPoint): void {
+    this.ngZone.run(() => this.outageSelected.emit(p));
   }
 
-  private async onMapMarkerClicked(p: GlobeMapPoint): Promise<void> {
-    if (isGlobeRadioPoint(p)) {
-      const playUrl = await firstValueFrom(
-        this.radioBrowser.notifyStationClick(p.stationuuid),
-      );
-      if (!this.alive) return;
-      this.ngZone.run(() =>
-        this.radioSelected.emit({ station: p, playUrl }),
-      );
-      return;
-    }
-    this.ngZone.run(() => this.streamSelected.emit(p));
-  }
-
-  /** Match WebGL canvas to host box (sidebar open/resize, window resize). */
   private syncGlobeLayout(): void {
     if (!this.alive || !this.globe) return;
     const box = this.globeHost.nativeElement;
@@ -1120,16 +892,16 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       return;
     }
 
-    const channel = this.selectedStream?.channelLogin ?? null;
+    const outageId = this.selectedOutage?.markerId ?? null;
     const idx =
-      channel === null || !this.streamPoints.length
+      outageId === null || !this.outagePoints.length
         ? -1
-        : this.streamPoints.findIndex((p) => p.channelLogin === channel);
+        : this.outagePoints.findIndex((p) => p.markerId === outageId);
 
-    if (channel && idx >= 0) {
+    if (outageId && idx >= 0) {
       if (!this.globe) return;
-      if (this.lastFocusedMarkerId === channel) return;
-      const target = this.streamPoints[idx]!;
+      if (this.lastFocusedMarkerId === outageId) return;
+      const target = this.outagePoints[idx]!;
       this.globe.pointOfView(
         {
           lat: target.latitude,
@@ -1138,23 +910,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
         },
         this.selectedFocusTransitionMs,
       );
-      this.lastFocusedMarkerId = channel;
-      return;
-    }
-
-    const radioSel = this.selectedRadio?.station ?? null;
-    if (radioSel) {
-      if (!this.globe) return;
-      if (this.lastFocusedMarkerId === radioSel.markerId) return;
-      this.globe.pointOfView(
-        {
-          lat: radioSel.latitude,
-          lng: radioSel.longitude,
-          altitude: this.focusStreamCameraAltitude(),
-        },
-        this.selectedFocusTransitionMs,
-      );
-      this.lastFocusedMarkerId = radioSel.markerId;
+      this.lastFocusedMarkerId = outageId;
       return;
     }
 
@@ -1162,8 +918,6 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   }
 
   private currentMarkerBaseRadius(): number {
-    // Map POV altitude from closest zoom (`minCameraAltitude`) to default zoom-out — avoids a
-    // plateau (old altMin 0.08) where radii stopped shrinking while the camera moved closer.
     const altMin = this.minCameraAltitude;
     const altMax = this.initialGlobeAltitude;
     const t = THREE.MathUtils.clamp(
@@ -1174,16 +928,10 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     return this.markerRadiusMin + (this.markerRadiusMax - this.markerRadiusMin) * t;
   }
 
-  /**
-   * Cylinder height: linear in viewers up to 1k, then log₁₀ from 1k to the cap so
-   * huge channels do not dominate.
-   */
-  /** POV altitude when flying to a selected stream (must stay above tallest cylinders). */
   private focusStreamCameraAltitude(): number {
     return Math.max(this.minCameraAltitude + 0.06, this.selectedFocusAltitude);
   }
 
-  /** Max `pointAltitude` so cylinder top stays below focus camera (radial clearance). */
   private maxPointAltitudeForFocusZoom(): number {
     const focusAlt = this.focusStreamCameraAltitude();
     return Math.max(
@@ -1192,29 +940,31 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     );
   }
 
-  private viewerCountToPointAltitude(viewers: number): number {
-    const v0 = Number.isFinite(viewers) ? Math.max(0, viewers) : 0;
-    const cap = this.markerViewersAltitudeCap;
-    const v = Math.min(v0, cap);
+  private latencyToPointAltitude(latencyMs: number): number {
+    const l0 = Number.isFinite(latencyMs) ? Math.max(0, latencyMs) : 0;
+    const minLatency = 30;
+    const maxLatency = 5000;
+    
+    const l = Math.min(Math.max(l0, minLatency), maxLatency);
+    
     const h0 = this.markerAltitudeMin;
     const h1 = Math.min(this.markerAltitudeMax, this.maxPointAltitudeForFocusZoom());
+    
+    const lThreshold = 300;
     const span = h1 - h0;
-    const hLinearTop = h0 + this.markerAltitudeLinearBandFraction * span;
-    const vLin = this.markerAltitudeLinearViewerCeiling;
-
-    if (v <= vLin) {
-      const t = vLin > 0 ? v / vLin : 0;
-      return h0 + t * (hLinearTop - h0);
+    const hLinearTop = h0 + 0.35 * span; // 35% height for latency up to 300ms
+    
+    if (l <= lThreshold) {
+      const t = (l - minLatency) / (lThreshold - minLatency);
+      return h0 + Math.max(0, t) * (hLinearTop - h0);
     }
-
-    const logLo = Math.log10(vLin + 1);
-    const logHi = Math.log10(cap + 1);
+    
+    const logLo = Math.log10(lThreshold);
+    const logHi = Math.log10(maxLatency);
     const denom = logHi - logLo;
-    const tLog =
-      denom > 0
-        ? THREE.MathUtils.clamp((Math.log10(v + 1) - logLo) / denom, 0, 1)
-        : 1;
-    return hLinearTop + tLog * (h1 - hLinearTop);
+    const tLog = denom > 0 ? (Math.log10(l) - logLo) / denom : 1;
+    
+    return hLinearTop + THREE.MathUtils.clamp(tLog, 0, 1) * (h1 - hLinearTop);
   }
 }
 
@@ -1224,7 +974,6 @@ function geojsonToBorderPaths(features: GeoFeature[]): BorderPath[] {
   function addRing(coords: [number, number][]): void {
     if (!coords || coords.length < 2) return;
     const pnts = coords.map(([lng, lat]) => [lat, lng] as [number, number]);
-    // Base crisp border line + multi-pass outer glow to fake a soft gradient.
     paths.push({ pnts, style: 'base' });
     paths.push({ pnts, style: 'glow1' });
     paths.push({ pnts, style: 'glow2' });

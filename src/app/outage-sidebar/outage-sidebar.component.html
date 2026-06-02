@@ -1,0 +1,226 @@
+<aside
+  #panelRef
+  class="panel"
+  [class.panel--resizing]="panelWidthDragActive"
+  [class.panel--open]="panelOpen"
+  [class.panel--mobile-full]="isMobileSidebarLayout"
+  [class.panel--outage-search-expanded]="outageSearchSectionExpanded"
+  role="dialog"
+  aria-label="Outage details"
+  [style.width.px]="panelWidthPx"
+>
+  @if (!isMobileSidebarLayout) {
+    <div class="resize-edge" aria-hidden="true" (mousedown)="onResizeMouseDown($event)"></div>
+  }
+
+  <div class="panel-scroll panel-scroll--browse">
+    @if (outage) {
+      <div class="outage-detail-block">
+        <div class="outage-header-row">
+          <img [src]="outage.thumbnail" class="outage-service-logo" alt="" />
+          <h2 class="title">{{ outage.title }}</h2>
+        </div>
+
+        <!-- Premium System Monitor Widget -->
+        <div class="system-monitor-widget">
+          <!-- Status Radar Header -->
+          <div class="monitor-radar-section" [attr.data-status]="outage.status">
+            <div class="radar-pulse">
+              <div class="radar-ring-1"></div>
+              <div class="radar-ring-2"></div>
+              <div class="radar-core"></div>
+            </div>
+            <div class="status-label">
+              <span class="status-eyebrow">system status</span>
+              <span class="status-value">{{ outage.status.toUpperCase() }}</span>
+            </div>
+          </div>
+
+          <!-- Uptime Timeline Grid (24h simulated log blocks) -->
+          <div class="monitor-timeline-section">
+            <div class="timeline-header">
+              <span>Simulated 24h Uptime Log</span>
+              <span [style.color]="outage.status === 'down' ? '#EF4444' : outage.status === 'degraded' ? '#F59E0B' : '#10B981'">
+                {{ outage.status === 'down' ? 'Critical Failure' : outage.status === 'degraded' ? 'Degraded Performance' : '100% Operational' }}
+              </span>
+            </div>
+            <div class="timeline-grid">
+              <!-- Render 30 timeline cells -->
+              @for (cell of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]; track $index) {
+                <div class="timeline-cell" 
+                     [attr.data-cell-status]="outage.status === 'down' ? ($index > 25 ? 'down' : 'up') : outage.status === 'degraded' ? ($index > 22 ? 'degraded' : 'up') : 'up'"></div>
+              }
+            </div>
+            <div class="timeline-footer">
+              <span>24 hours ago</span>
+              <span>Just now</span>
+            </div>
+          </div>
+
+          <!-- Metric Cards Grid -->
+          <div class="monitor-metrics-grid">
+            <div class="metric-card">
+              <span class="card-label">Latency</span>
+              <span class="card-value" [style.color]="outage.status === 'down' ? '#EF4444' : outage.status === 'degraded' ? '#F59E0B' : '#10B981'">
+                {{ outage.latencyMs | number }} ms
+              </span>
+            </div>
+            <div class="metric-card">
+              <span class="card-label">Active Probe</span>
+              <span class="card-value card-value--small">
+                {{ outage.latitude | number:'1.2-2' }}, {{ outage.longitude | number:'1.2-2' }}
+              </span>
+            </div>
+            <div class="metric-card">
+              <span class="card-label">Provider</span>
+              <span class="card-value card-value--small">{{ outage.platform.toUpperCase() }} API</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="outage-desc-heading">
+          <div class="section-title">Incident Details</div>
+          <a
+            class="external external--outage-open"
+            [href]="outage.link"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Open Official Status Page</a
+          >
+        </div>
+        <p class="desc">{{ outage.description }}</p>
+      </div>
+    } @else {
+      <div class="stream-detail-empty" role="status">
+        <p class="stream-detail-empty__title">No Outage Selected</p>
+        <p class="stream-detail-empty__hint">Select a pulsing node from the list or the globe to audit status.</p>
+      </div>
+    }
+  </div>
+
+  <!-- Incident Dock Section -->
+  <footer
+    class="stream-search-dock"
+    [class.stream-search-dock--collapsed]="!outageSearchSectionExpanded"
+    aria-label="Active Outages"
+  >
+    <button
+      type="button"
+      class="stream-search-toggle"
+      (click)="toggleOutageSearchSection()"
+      [attr.aria-expanded]="outageSearchSectionExpanded"
+      [attr.aria-controls]="outageSearchSectionExpanded ? 'outage-search-expanded' : null"
+      id="outage-search-toggle"
+    >
+      <span class="stream-search-chevron" aria-hidden="true">{{
+        outageSearchSectionExpanded ? '▼' : '▸'
+      }}</span>
+      <span class="stream-search-toggle-title">System Outages</span>
+      <span class="stream-search-toggle-summary" aria-live="polite">{{ outageSearchDockSummary }}</span>
+    </button>
+
+    @if (outageSearchSectionExpanded) {
+      <div id="outage-search-expanded" class="stream-search-expanded" role="region" aria-labelledby="outage-search-toggle">
+        <div class="stream-search-dock-inner">
+          @if (allOutages.length === 0) {
+            <p class="stream-browse-empty">Checking system status…</p>
+          } @else {
+            <ul class="stream-browse-list">
+              @for (s of sortedBrowseOutages; track s.markerId) {
+                <li>
+                  <button
+                    type="button"
+                    class="stream-browse-card"
+                    [class.stream-browse-card--active]="isActiveBrowseCard(s)"
+                    [attr.data-active-status]="s.status"
+                    (click)="pickOutageFromBrowse(s)"
+                  >
+                    <div class="outage-browse-card-content">
+                      <img [src]="s.thumbnail" class="outage-browse-logo" alt="" />
+                      <div class="outage-browse-details">
+                        <div class="outage-browse-row">
+                          <span class="stream-browse-card-title">{{ s.title }}</span>
+                          <span class="outage-browse-status-dot" [attr.data-status]="s.status" aria-hidden="true"></span>
+                        </div>
+                        <div class="outage-browse-row outage-browse-row--meta">
+                          <span class="stream-browse-card-views">{{ s.latencyMs | number }} ms</span>
+                          <span class="stream-browse-card-desc">{{ s.description }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    }
+  </footer>
+
+  <!-- Disaster Simulator Control Panel -->
+  <footer
+    class="radio-dock"
+    [class.radio-dock--collapsed]="!simulatorSectionExpanded"
+    aria-label="Disaster Simulator"
+  >
+    <button
+      type="button"
+      class="radio-toggle"
+      (click)="toggleSimulatorSection()"
+      [attr.aria-expanded]="simulatorSectionExpanded"
+      [attr.aria-controls]="simulatorSectionExpanded ? 'simulator-expanded' : null"
+      id="simulator-toggle"
+    >
+      <span class="radio-chevron" aria-hidden="true">{{ simulatorSectionExpanded ? '▼' : '▸' }}</span>
+      <span class="radio-toggle-title">Outage Disaster Simulator</span>
+      <span class="radio-toggle-summary" aria-live="polite">Trigger Event Presets</span>
+    </button>
+
+    @if (simulatorSectionExpanded) {
+      <div id="simulator-expanded" class="radio-expanded" role="region" aria-labelledby="simulator-toggle">
+        <div class="simulator-panel-inner">
+          <p class="simulator-intro">Override backend state and trigger simulated outage scenarios globally:</p>
+          <div class="simulator-presets-grid">
+            <button
+              type="button"
+              class="simulator-btn"
+              [class.simulator-btn--active]="currentSimulation === 'none'"
+              (click)="triggerSimulation('none')"
+            >
+              <span class="sim-btn-indicator" style="background-color: #10B981;"></span>
+              Normal Simulation
+            </button>
+            <button
+              type="button"
+              class="simulator-btn"
+              [class.simulator-btn--active]="currentSimulation === 'solar-flare'"
+              (click)="triggerSimulation('solar-flare')"
+            >
+              <span class="sim-btn-indicator" style="background-color: #EF4444;"></span>
+              Solar Flare (Global Collapse)
+            </button>
+            <button
+              type="button"
+              class="simulator-btn"
+              [class.simulator-btn--active]="currentSimulation === 'global-dns'"
+              (click)="triggerSimulation('global-dns')"
+            >
+              <span class="sim-btn-indicator" style="background-color: #3B82F6;"></span>
+              DNS Backbone Collapsed
+            </button>
+            <button
+              type="button"
+              class="simulator-btn"
+              [class.simulator-btn--active]="currentSimulation === 'aws-collapse'"
+              (click)="triggerSimulation('aws-collapse')"
+            >
+              <span class="sim-btn-indicator" style="background-color: #F59E0B;"></span>
+              AWS Cloud Core Outage
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </footer>
+</aside>

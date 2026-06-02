@@ -32,8 +32,8 @@
     class="stream-search-launch"
     [class.stream-search-launch--panel-open]="searchLaunchShowsClose"
     (click)="onSearchToggleClick()"
-    [attr.aria-label]="searchLaunchShowsClose ? 'Close panel' : 'Open stream search'"
-    [attr.title]="searchLaunchShowsClose ? 'Close' : 'Browse live streams'"
+    [attr.aria-label]="searchLaunchShowsClose ? 'Close panel' : 'Open outage search'"
+    [attr.title]="searchLaunchShowsClose ? 'Close' : 'Browse active outages'"
   >
   <span class="stream-search-launch__face">
     <span class="stream-search-launch__icons" aria-hidden="true">
@@ -90,26 +90,83 @@
 
 @if (focusMode) {
   <div class="focus-stream-layer">
-    <div class="focus-stream-layer__cover" inert aria-hidden="true">
-      @if (focusStreamEmbedUrl) {
-        <iframe
-          class="focus-stream-layer__iframe"
-          [src]="focusStreamEmbedUrl"
-          [title]="focusStreamIframeTitle"
-          tabindex="-1"
-          allowfullscreen
-          allow="autoplay; fullscreen; picture-in-picture"
-        ></iframe>
-      } @else {
-        <div class="focus-stream-layer__blank" aria-hidden="true"></div>
-      }
+    <!-- Premium Real-time System Dashboard in Focus Mode -->
+    <div class="focus-stream-layer__cover" aria-hidden="true">
+      <div class="focus-dashboard">
+        <div class="focus-dashboard-grid">
+          <div class="focus-dashboard-bg-grid"></div>
+          
+          <div class="focus-dashboard-header">
+            <div class="focus-dashboard-brand">
+              @if (selectedOutage) {
+                <img [src]="selectedOutage.thumbnail" class="focus-dashboard-logo" alt="" />
+              }
+              <span class="focus-dashboard-title">{{ selectedOutage ? selectedOutage.title : 'Global Network Systems' }}</span>
+            </div>
+            <div class="focus-dashboard-status-tag" [attr.data-status]="selectedOutage ? selectedOutage.status : 'up'">
+              <span class="status-pulse-dot"></span>
+              {{ selectedOutage ? selectedOutage.status.toUpperCase() : 'ALL OPERATIONAL' }}
+            </div>
+          </div>
+
+          <div class="focus-dashboard-main">
+            <!-- Large Latency Indicator -->
+            <div class="focus-dashboard-metric-card">
+              <span class="metric-label">Latency / Response Time</span>
+              <span class="metric-value" [style.color]="selectedOutage?.status === 'down' ? '#EF4444' : selectedOutage?.status === 'degraded' ? '#F59E0B' : '#10B981'">
+                {{ selectedOutage ? (selectedOutage.latencyMs | number) + ' ms' : '48 ms' }}
+              </span>
+              <div class="metric-chart-sim">
+                @for (h of [35, 42, 68, 50, 41, 55, 70, 60, 48, 52, 67, 85, 90, 72, 80]; track $index) {
+                  <div class="bar-sim" [style.height.%]="selectedOutage ? (selectedOutage.status === 'down' ? h : selectedOutage.status === 'degraded' ? h * 0.5 : h * 0.15) : h * 0.1"></div>
+                }
+              </div>
+            </div>
+
+            <!-- Server Node Grid -->
+            <div class="focus-dashboard-nodes-card">
+              <span class="metric-label">Active Probe Nodes</span>
+              <div class="node-dots-grid">
+                @for (dot of [1,2,3,4,5,6,7,8,9,10,11,12]; track $index) {
+                  <span class="node-dot" [attr.data-node-status]="selectedOutage ? (selectedOutage.status === 'down' ? ($index % 4 === 0 ? 'degraded' : 'down') : 'degraded') : 'up'"></span>
+                }
+              </div>
+            </div>
+
+            <!-- Real-Time Log Feed -->
+            <div class="focus-dashboard-logs-card">
+              <span class="metric-label">Incident Log Feed</span>
+              <div class="log-lines">
+                <div class="log-line">
+                  <span class="log-time">[UTC 18:54:12]</span>
+                  <span class="log-msg" [style.color]="selectedOutage?.status === 'down' ? '#EF4444' : selectedOutage?.status === 'degraded' ? '#F59E0B' : '#10B981'">
+                    {{ selectedOutage ? selectedOutage.description : 'Uptime check passed from London' }}
+                  </span>
+                </div>
+                <div class="log-line">
+                  <span class="log-time">[UTC 18:52:45]</span>
+                  <span class="log-msg" [style.color]="selectedOutage?.status === 'down' ? '#EF4444' : '#10B981'">
+                    {{ selectedOutage ? 'HTTP GET ping threshold verify successful' : 'Uptime check passed from Tokyo' }}
+                  </span>
+                </div>
+                <div class="log-line">
+                  <span class="log-time">[UTC 18:50:02]</span>
+                  <span class="log-msg" [style.color]="selectedOutage ? '#F59E0B' : '#10B981'">
+                    {{ selectedOutage ? 'Monitoring probe initialized' : 'Uptime check passed from Silicon Valley' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
     <div class="focus-stream-layer__column">
       <div class="focus-stream-layer__stack">
         <div class="focus-stream-layer__pane">
           <app-focus-pomodoro
             [soundMenuOpen]="focusSoundMenuVisible"
-            (timerPlayClicked)="onFocusEmbedAutoplayAfterPomodoroStart()"
             (soundMenuToggle)="toggleFocusSoundMenu()"
             (soundMenuCloseRequest)="onSoundMenuCloseFromPomodoro()"
           />
@@ -120,40 +177,8 @@
               role="region"
               aria-label="Sound and ambient audio"
             >
-              <h3 class="focus-pane-sound__eyebrow">Sound</h3>
-              <label class="focus-pane-sound__field focus-pane-sound__field--row">
-                <input
-                  type="checkbox"
-                  [checked]="focusStreamAudioOn"
-                  (change)="toggleFocusStreamAudio()"
-                />
-                <span>Stream audio</span>
-              </label>
-              <p class="focus-pane-sound__hint">
-                Off by default — turn on to hear the main stream (may reload the player).
-              </p>
-
-              @if (selectedRadio) {
-                <div class="focus-pane-sound__block" role="region" aria-label="Radio">
-                  <span class="focus-pane-sound__label">Radio</span>
-                  <p class="focus-pane-sound__title">{{ selectedRadio.station.name }}</p>
-                  @if (focusRadioResolving) {
-                    <p class="focus-pane-sound__status">Resolving stream…</p>
-                  } @else if (focusRadioPlayUrl) {
-                    <audio
-                      class="focus-pane-sound__radio-audio"
-                      [src]="focusRadioPlayUrl"
-                      controls
-                      playsinline
-                      preload="metadata"
-                      controlsList="nodownload"
-                    ></audio>
-                  } @else if (focusRadioResolveFailed) {
-                    <p class="focus-pane-sound__status">Could not load this station.</p>
-                  }
-                </div>
-              }
-
+              <h3 class="focus-pane-sound__eyebrow">Sound Options</h3>
+              
               <label class="focus-pane-sound__field">
                 <span>Lo-fi beats</span>
                 <select
@@ -227,23 +252,23 @@
   [focusMode]="focusMode"
   [sidebarOpen]="sidebarOpen"
   [sidebarInsetSnap]="sidebarPanelResizing"
-  [selectedStream]="selectedStream"
-  [selectedRadio]="selectedRadio"
-  [initialStreamQuery]="initialStreamQuery"
-  [initialRadioQuery]="initialRadioQuery"
-  (streamSelected)="onStreamSelected($event)"
-  (radioSelected)="onRadioSelected($event)"
-  (streamsCatalogChange)="onStreamsCatalog($event)"
+  [selectedOutage]="selectedOutage"
+  [currentSimulation]="currentSimulation"
+  [initialOutageQuery]="initialOutageQuery"
+  (outageSelected)="onOutageSelected($event)"
+  (outagesCatalogChange)="onOutagesCatalog($event)"
 />
-@if (sidebarOpen && !(focusMode && selectedStream)) {
-  <app-stream-sidebar
-    [stream]="selectedStream"
-    [allStreams]="allStreams"
-    [radioSelection]="selectedRadio"
+
+@if (sidebarOpen && !(focusMode && selectedOutage)) {
+  <app-outage-sidebar
+    [outage]="selectedOutage"
+    [allOutages]="allOutages"
+    [currentSimulation]="currentSimulation"
+    (simulationChange)="onSimulationChange($event)"
     (closing)="onSidebarClosing()"
     (closed)="onSidebarClosed()"
     (resizeActiveChange)="sidebarPanelResizing = $event"
     (layoutWidthPxChange)="onSidebarLayoutWidth($event)"
-    (streamPick)="onStreamSelected($event)"
+    (outagePick)="onOutageSelected($event)"
   />
 }

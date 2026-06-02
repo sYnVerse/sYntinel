@@ -1,32 +1,45 @@
 import { 
   geolocateFromText, 
-  applyJitter, 
-  CuratedYouTubeCams, 
-  CuratedTwitchStreamers, 
-  CuratedKickStreamers
+  applyJitter 
 } from './geolocation';
 
 export interface Env {
-  TWITCH_CLIENT_ID: string;
-  TWITCH_CLIENT_SECRET?: string;
-  TWITCH_ACCESS_TOKEN: string;
-  YOUTUBE_API_KEY: string;
+  PINGDOM_API_KEY?: string;
+  STATUSGATOR_API_KEY?: string;
   ASSETS?: {
     fetch: (request: Request) => Promise<Response>;
   };
 }
 
-export interface StreamDto {
+export interface OutageDto {
+  id: string;
   title: string;
   description: string;
   link: string;
   thumbnail: string;
-  viewerCount: number;
+  latencyMs: number;
   latitude: number;
   longitude: number;
   uncertaintyKm?: number | null;
-  platform?: string | null;
+  platform: string;
+  status: 'down' | 'degraded' | 'up';
+  service: string;
+  timestamp: number;
 }
+
+const MOCK_SERVICES = [
+  { id: 'github', name: 'GitHub', service: 'github', baseLat: 37.7749, baseLng: -122.4194, link: 'https://www.githubstatus.com', logo: 'github' },
+  { id: 'slack', name: 'Slack', service: 'slack', baseLat: 51.5074, baseLng: -0.1278, link: 'https://status.slack.com', logo: 'slack' },
+  { id: 'aws-us-east', name: 'AWS us-east-1', service: 'aws', baseLat: 38.0336, baseLng: -78.5080, link: 'https://health.aws.amazon.com', logo: 'amazonaws' },
+  { id: 'aws-eu-west', name: 'AWS eu-west-1', service: 'aws', baseLat: 53.3498, baseLng: -6.2603, link: 'https://health.aws.amazon.com', logo: 'amazonaws' },
+  { id: 'aws-ap-ne', name: 'AWS ap-northeast-1', service: 'aws', baseLat: 35.6762, baseLng: 139.6503, link: 'https://health.aws.amazon.com', logo: 'amazonaws' },
+  { id: 'cloudflare-frankfurt', name: 'Cloudflare (FRA)', service: 'cloudflare', baseLat: 50.1109, baseLng: 8.6821, link: 'https://www.cloudflarestatus.com', logo: 'cloudflare' },
+  { id: 'cloudflare-tokyo', name: 'Cloudflare (NRT)', service: 'cloudflare', baseLat: 35.7720, baseLng: 140.3929, link: 'https://www.cloudflarestatus.com', logo: 'cloudflare' },
+  { id: 'openai', name: 'OpenAI API', service: 'openai', baseLat: 37.7624, baseLng: -122.4348, link: 'https://status.openai.com', logo: 'openai' },
+  { id: 'zoom', name: 'Zoom Video', service: 'zoom', baseLat: 39.7392, baseLng: -104.9903, link: 'https://status.zoom.us', logo: 'zoom' },
+  { id: 'vercel', name: 'Vercel Edge', service: 'vercel', baseLat: 52.5200, baseLng: 13.4050, link: 'https://www.vercel-status.com', logo: 'vercel' },
+  { id: 'heroku', name: 'Heroku Cloud', service: 'heroku', baseLat: 44.0521, baseLng: -123.0868, link: 'https://status.heroku.com', logo: 'heroku' }
+];
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -47,28 +60,13 @@ export default {
     const url = new URL(request.url);
 
     // API Routing
-    if (url.pathname === '/api/streams') {
-      const response = await handleGetStreams(env);
-      return addCorsHeaders(response, origin);
-    }
-    if (url.pathname.startsWith('/api/twitch')) {
-      const response = await handleTwitch(request, env);
-      return addCorsHeaders(response, origin);
-    }
-    if (url.pathname.startsWith('/api/youtube')) {
-      const response = await handleYouTube(request, env);
-      return addCorsHeaders(response, origin);
-    }
-    if (url.pathname.startsWith('/api/radiobrowser')) {
-      const response = await handleRadioBrowser(request);
-      return addCorsHeaders(response, origin);
-    }
-    if (url.pathname.startsWith('/api/kick')) {
-      const response = await handleKick(request);
+    if (url.pathname === '/api/outages') {
+      const simulateParam = url.searchParams.get('simulate') || 'none';
+      const response = await handleGetOutages(env, simulateParam);
       return addCorsHeaders(response, origin);
     }
 
-    // Option B: Fallback to serving static assets
+    // Serve static assets
     if (env.ASSETS) {
       return env.ASSETS.fetch(request);
     }
@@ -90,272 +88,231 @@ function addCorsHeaders(response: Response, origin: string): Response {
   });
 }
 
-async function getTwitchAccessToken(clientId: string, clientSecret: string): Promise<string | null> {
-  try {
-    const res = await fetch('https://id.twitch.tv/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { access_token: string };
-    return data.access_token;
-  } catch (err) {
-    console.error('Error fetching Twitch token:', err);
-    return null;
-  }
-}
+async function handleGetOutages(env: Env, simulateParam: string): Promise<Response> {
+  let outages: OutageDto[] = [];
 
-async function handleGetStreams(env: Env): Promise<Response> {
-  const streams: StreamDto[] = [];
-  
-  // 1. YouTube Live Cams
-  try {
-    if (env.YOUTUBE_API_KEY) {
-      const videoIds = CuratedYouTubeCams.map(c => c.id).join(',');
-      const ytUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoIds}&key=${env.YOUTUBE_API_KEY}`;
-      const ytRes = await fetch(ytUrl);
-      
-      if (ytRes.ok) {
-        const ytData = (await ytRes.json()) as any;
-        const items = ytData.items || [];
-        
-        for (const cam of CuratedYouTubeCams) {
-          const liveInfo = items.find((item: any) => item.id === cam.id);
-          if (liveInfo && liveInfo.snippet?.liveBroadcastContent === 'live') {
-            const viewers = parseInt(liveInfo.liveStreamingDetails?.concurrentViewers || '150', 10);
-            streams.push({
-              title: liveInfo.snippet.title || cam.title,
-              description: liveInfo.snippet.description?.slice(0, 150) || cam.description,
-              link: cam.link,
-              thumbnail: liveInfo.snippet.thumbnails?.medium?.url || cam.thumbnail,
-              viewerCount: viewers,
-              latitude: cam.latitude,
-              longitude: cam.longitude,
-              uncertaintyKm: 0.5,
-              platform: 'youtube',
-            });
-          }
-        }
-      } else {
-        throw new Error(`YouTube API returned ${ytRes.status}`);
-      }
-    } else {
-      // Fallback: If no API key, return curated list as active streams
-      for (const cam of CuratedYouTubeCams) {
-        streams.push({
-          title: cam.title,
-          description: cam.description,
-          link: cam.link,
-          thumbnail: cam.thumbnail,
-          viewerCount: Math.floor(Math.random() * 350) + 50,
-          latitude: cam.latitude,
-          longitude: cam.longitude,
-          uncertaintyKm: 0.5,
-          platform: 'youtube',
-        });
-      }
+  // Check if real API integrations are configured
+  if (env.PINGDOM_API_KEY) {
+    try {
+      outages = await fetchPingdomOutages(env.PINGDOM_API_KEY);
+    } catch (err) {
+      console.error('Failed to fetch Pingdom outages, falling back:', err);
     }
-  } catch (err) {
-    console.error('Failed to get YouTube streams, using fallback:', err);
-    for (const cam of CuratedYouTubeCams) {
-      streams.push({
-        title: cam.title,
-        description: cam.description,
-        link: cam.link,
-        thumbnail: cam.thumbnail,
-        viewerCount: 120,
-        latitude: cam.latitude,
-        longitude: cam.longitude,
-        uncertaintyKm: 0.5,
-        platform: 'youtube',
-      });
+  } else if (env.STATUSGATOR_API_KEY) {
+    try {
+      outages = await fetchStatusGatorOutages(env.STATUSGATOR_API_KEY);
+    } catch (err) {
+      console.error('Failed to fetch StatusGator outages, falling back:', err);
     }
   }
 
-  // 2. Twitch IRL Streams
-  try {
-    const clientId = env.TWITCH_CLIENT_ID;
-    let accessToken = env.TWITCH_ACCESS_TOKEN;
-
-    if (clientId && env.TWITCH_CLIENT_SECRET && !accessToken) {
-      accessToken = (await getTwitchAccessToken(clientId, env.TWITCH_CLIENT_SECRET)) || '';
-    }
-
-    if (clientId && accessToken) {
-      const twitchUrl = 'https://api.twitch.tv/helix/streams?game_id=509672&first=100';
-      const twitchRes = await fetch(twitchUrl, {
-        headers: {
-          'Client-ID': clientId,
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      if (twitchRes.ok) {
-        const twitchData = (await twitchRes.json()) as any;
-        const liveStreams = twitchData.data || [];
-
-        for (const s of liveStreams) {
-          const titleText = `${s.title} ${s.tags ? s.tags.join(' ') : ''}`;
-          let location = geolocateFromText(titleText);
-
-          if (!location) {
-            const username = s.user_login.toLowerCase();
-            const curatedLoc = CuratedTwitchStreamers[username];
-            if (curatedLoc) {
-              location = applyJitter(curatedLoc.latitude, curatedLoc.longitude, curatedLoc.uncertaintyKm || 10);
-            }
-          }
-
-          if (!location && s.language) {
-            const lang = s.language.toLowerCase();
-            if (lang === 'ja') location = applyJitter(35.6595, 139.7006, 150);
-            else if (lang === 'ko') location = applyJitter(37.5665, 126.9780, 100);
-            else if (lang === 'de') location = applyJitter(51.1657, 10.4515, 200);
-            else if (lang === 'fr') location = applyJitter(46.2276, 2.2137, 200);
-            else if (lang === 'es') location = applyJitter(40.4637, -3.7492, 200);
-            else if (lang === 'it') location = applyJitter(41.8719, 12.5674, 200);
-            else if (lang === 'zh') location = applyJitter(25.0330, 121.5654, 80);
-            else if (lang === 'th') location = applyJitter(15.8700, 100.9925, 150);
-          }
-
-          if (location) {
-            streams.push({
-              title: s.user_name,
-              description: s.title,
-              link: `https://twitch.tv/${s.user_login}`,
-              thumbnail: s.thumbnail_url.replace('{width}', '320').replace('{height}', '180'),
-              viewerCount: s.viewer_count,
-              latitude: location.latitude,
-              longitude: location.longitude,
-              uncertaintyKm: location.uncertaintyKm || 10,
-              platform: 'twitch',
-            });
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Failed to fetch Twitch streams:', err);
+  // Fallback to Simulation Mode if no keys configured or if simulated disaster triggered
+  if (outages.length === 0 || simulateParam !== 'none') {
+    outages = generateSimulatedOutages(simulateParam);
   }
 
-  // 3. Kick IRL Streams
-  try {
-    const kickUrl = 'https://kick.com/api/v2/subcategories/travel-outdoors/lives';
-    const kickRes = await fetch(kickUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
-
-    if (kickRes.ok) {
-      const kickData = (await kickRes.json()) as any;
-      const liveStreams = kickData.data || [];
-
-      for (const s of liveStreams) {
-        if (!s.slug) continue;
-        const titleText = `${s.session?.title || ''}`;
-        let location = geolocateFromText(titleText);
-
-        if (!location) {
-          const username = s.slug.toLowerCase();
-          const curatedLoc = CuratedKickStreamers[username];
-          if (curatedLoc) {
-            location = applyJitter(curatedLoc.latitude, curatedLoc.longitude, curatedLoc.uncertaintyKm || 20);
-          }
-        }
-
-        if (location) {
-          streams.push({
-            title: s.user?.username || s.slug,
-            description: s.session?.title || 'Kick Live Stream',
-            link: `https://kick.com/${s.slug}`,
-            thumbnail: s.session?.thumbnail?.src || 'https://kick.com/favicon.ico',
-            viewerCount: s.viewers || 0,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            uncertaintyKm: location.uncertaintyKm || 10,
-            platform: 'kick',
-          });
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Failed to fetch Kick streams dynamically:', err);
-  }
-
-  return new Response(JSON.stringify(streams), {
+  return new Response(JSON.stringify(outages), {
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=60',
+      'Cache-Control': 'public, max-age=10',
     },
   });
 }
 
-async function handleTwitch(request: Request, env: Env): Promise<Response> {
-  const clientId = env.TWITCH_CLIENT_ID;
-  let accessToken = env.TWITCH_ACCESS_TOKEN;
-
-  if (clientId && env.TWITCH_CLIENT_SECRET && !accessToken) {
-    accessToken = (await getTwitchAccessToken(clientId, env.TWITCH_CLIENT_SECRET)) || '';
-  }
-
-  if (!clientId || !accessToken) {
-    return new Response('Twitch API credentials missing', { status: 401 });
-  }
-
-  const twitchUrl = new URL(request.url);
-  twitchUrl.hostname = 'api.twitch.tv';
-  twitchUrl.pathname = twitchUrl.pathname.replace('/api/twitch', '');
-
-  const response = await fetch(twitchUrl.toString(), {
-    method: request.method,
+async function fetchPingdomOutages(apiKey: string): Promise<OutageDto[]> {
+  const url = 'https://api.pingdom.com/api/3.1/checks';
+  const res = await fetch(url, {
     headers: {
-      'Client-ID': clientId,
-      'Authorization': `Bearer ${accessToken}`,
-    },
+      'Authorization': `Bearer ${apiKey}`
+    }
   });
 
-  return response;
-}
-
-async function handleYouTube(request: Request, env: Env): Promise<Response> {
-  const apiKey = env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    return new Response('YouTube API key missing', { status: 401 });
+  if (!res.ok) {
+    throw new Error(`Pingdom returned HTTP ${res.status}`);
   }
 
-  const url = new URL(request.url);
-  url.hostname = 'www.googleapis.com';
-  url.pathname = url.pathname.replace('/api/youtube', '/youtube/v3');
-  url.searchParams.set('key', apiKey);
+  const data = (await res.json()) as any;
+  const checks = data.checks || [];
+  const outages: OutageDto[] = [];
 
-  const response = await fetch(url.toString(), {
-    method: request.method,
-  });
-  return response;
+  for (const check of checks) {
+    // Pingdom statuses: up, down, unconfirmed, paused, unknown
+    if (check.status === 'down' || check.status === 'unconfirmed') {
+      const name = check.name || 'Unknown Site';
+      let loc = geolocateFromText(name);
+      
+      // Default to Middle of Atlantic / Equator if geolocation fails, apply jitter
+      if (!loc) {
+        loc = applyJitter(37.0902, -95.7129, 1000); // US central fallback
+      } else {
+        loc = applyJitter(loc.latitude, loc.longitude, 20);
+      }
+
+      const logo = getLogoForName(name);
+      const isDown = check.status === 'down';
+      const status = isDown ? 'down' : 'degraded';
+      const color = isDown ? 'EF4444' : 'F59E0B';
+
+      outages.push({
+        id: `pingdom-${check.id}`,
+        title: name,
+        description: `Pingdom check reported ${check.status.toUpperCase()}. Target: ${check.hostname || 'N/A'}.`,
+        link: `https://my.pingdom.com/`,
+        thumbnail: `https://cdn.simpleicons.org/${logo}/${color}`,
+        latencyMs: check.lastresponsetime || (isDown ? 5000 : 800),
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        uncertaintyKm: loc.uncertaintyKm,
+        platform: 'pingdom',
+        status: status,
+        service: logo,
+        timestamp: check.laststatuschangetime ? check.laststatuschangetime * 1000 : Date.now()
+      });
+    }
+  }
+
+  return outages;
 }
 
-async function handleRadioBrowser(request: Request): Promise<Response> {
-  const url = new URL(request.url);
-  url.hostname = 'de1.api.radio-browser.info';
-  url.pathname = url.pathname.replace('/api/radiobrowser', '');
-
-  const response = await fetch(url.toString(), {
-    method: request.method,
+async function fetchStatusGatorOutages(apiKey: string): Promise<OutageDto[]> {
+  // StatusGator API V3
+  const url = 'https://api.statusgator.com/api/v3/monitors';
+  const res = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'application/json'
+    }
   });
-  return response;
+
+  if (!res.ok) {
+    throw new Error(`StatusGator returned HTTP ${res.status}`);
+  }
+
+  const data = (await res.json()) as any;
+  const monitors = data.data || [];
+  const outages: OutageDto[] = [];
+
+  for (const monitor of monitors) {
+    const serviceName = monitor.attributes?.name || 'Service';
+    const statusText = monitor.attributes?.status || 'unknown'; // up, down, warn
+
+    if (statusText === 'down' || statusText === 'warn') {
+      const isDown = statusText === 'down';
+      const status = isDown ? 'down' : 'degraded';
+      const color = isDown ? 'EF4444' : 'F59E0B';
+      const logo = getLogoForName(serviceName);
+
+      // StatusGator returns global service statuses. We geolocate to default tech hub (Silicon Valley)
+      // and apply heavy jitter so they scatter nicely on the map
+      const baseLat = 37.7749;
+      const baseLng = -122.4194;
+      const loc = applyJitter(baseLat, baseLng, 1500);
+
+      outages.push({
+        id: `statusgator-${monitor.id}`,
+        title: serviceName,
+        description: `StatusGator monitor reported service as ${statusText.toUpperCase()}. Details: ${monitor.attributes?.description || 'N/A'}.`,
+        link: monitor.attributes?.home_url || `https://statusgator.com`,
+        thumbnail: `https://cdn.simpleicons.org/${logo}/${color}`,
+        latencyMs: isDown ? 4500 : 1200,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        uncertaintyKm: 250,
+        platform: 'statusgator',
+        status: status,
+        service: logo,
+        timestamp: Date.parse(monitor.attributes?.updated_at || new Date().toISOString())
+      });
+    }
+  }
+
+  return outages;
 }
 
-async function handleKick(request: Request): Promise<Response> {
-  const url = new URL(request.url);
-  url.hostname = 'kick.com';
-  url.pathname = url.pathname.replace('/api/kick', '/api');
+function getLogoForName(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes('github')) return 'github';
+  if (n.includes('slack')) return 'slack';
+  if (n.includes('aws') || n.includes('amazon')) return 'amazonaws';
+  if (n.includes('cloudflare')) return 'cloudflare';
+  if (n.includes('openai')) return 'openai';
+  if (n.includes('zoom')) return 'zoom';
+  if (n.includes('vercel')) return 'vercel';
+  if (n.includes('heroku')) return 'heroku';
+  if (n.includes('google')) return 'googlecloud';
+  if (n.includes('microsoft') || n.includes('azure')) return 'microsoftazure';
+  return 'statusgator'; // Fallback generic logo
+}
 
-  const response = await fetch(url.toString(), {
-    method: request.method,
+function generateSimulatedOutages(disaster: string): OutageDto[] {
+  const list: OutageDto[] = [];
+  const seed = Math.floor(Date.now() / 60000); // 1-minute seed rotation
+
+  MOCK_SERVICES.forEach((item, index) => {
+    let status: 'up' | 'degraded' | 'down' = 'up';
+    let latency = 40 + Math.floor(((seed * (index + 3)) % 80)); // base low latency
+    let desc = 'System operational. All health checks passing.';
+
+    if (disaster === 'solar-flare') {
+      status = 'down';
+      latency = 5500 + Math.floor(((seed * (index + 1)) % 3000));
+      desc = 'Solar storm magnetic interference. Global uplink carrier signal lost.';
+    } else if (disaster === 'global-dns') {
+      if (item.service === 'cloudflare' || item.service === 'aws') {
+        status = 'down';
+        latency = 4800 + Math.floor(((seed * (index + 2)) % 1500));
+        desc = 'Recursive DNS queries timing out. Root nameservers unreachable.';
+      } else {
+        status = 'degraded';
+        latency = 1200 + Math.floor(((seed * (index + 1)) % 800));
+        desc = 'Connection degraded. Domain names resolving slowly via fallback gateways.';
+      }
+    } else if (disaster === 'aws-collapse') {
+      if (item.service === 'aws' || item.service === 'vercel' || item.service === 'heroku' || item.service === 'slack') {
+        const isAWS = item.service === 'aws';
+        status = isAWS ? 'down' : 'degraded';
+        latency = (isAWS ? 4200 : 2200) + Math.floor(((seed * (index + 4)) % 1000));
+        desc = isAWS 
+          ? 'EBS Storage Volume degraded performance. EC2 API unavailable.'
+          : 'Degraded network connectivity. Downstream hosting provider AWS experiencing issues.';
+      }
+    } else {
+      // Normal simulation mode: random shifting failures
+      // Seed triggers dynamic outages every few minutes
+      const triggerDown = (seed + index * 7) % 11 === 0;
+      const triggerDegraded = (seed + index * 3) % 7 === 0;
+
+      if (triggerDown) {
+        status = 'down';
+        latency = 3000 + Math.floor(((seed * 19) % 2500));
+        desc = `Connection timeout: Server failed to respond within 3000ms. Tested from geo-probe.`;
+      } else if (triggerDegraded) {
+        status = 'degraded';
+        latency = 600 + Math.floor(((seed * 13) % 900));
+        desc = `Response times elevated: Server response is significantly slower than 200ms baseline.`;
+      }
+    }
+
+    // Apply jitter to coordinates so overlapping hubs (e.g. SF) separate beautifully
+    const jittered = applyJitter(item.baseLat, item.baseLng, 80);
+    const color = status === 'down' ? 'EF4444' : status === 'degraded' ? 'F59E0B' : '10B981';
+
+    list.push({
+      id: `simulated-${item.id}`,
+      title: item.name,
+      description: desc,
+      link: item.link,
+      thumbnail: `https://cdn.simpleicons.org/${item.logo}/${color}`,
+      latencyMs: latency,
+      latitude: jittered.latitude,
+      longitude: jittered.longitude,
+      uncertaintyKm: 80,
+      platform: 'simulated',
+      status: status,
+      service: item.service,
+      timestamp: Date.now() - (seed % 10) * 1000 * 60
+    });
   });
-  return response;
+
+  return list;
 }

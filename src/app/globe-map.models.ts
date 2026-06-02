@@ -1,16 +1,12 @@
-import type { GlobeRadioPoint } from './radio.models';
-import type { GlobeStreamPoint } from './stream.models';
+import type { GlobeOutagePoint } from './outage.models';
 
-export type GlobeMapPoint = GlobeStreamPoint | GlobeRadioPoint;
+export type GlobeMapPoint = GlobeOutagePoint;
 
-export function isGlobeRadioPoint(p: GlobeMapPoint): p is GlobeRadioPoint {
-  return p.kind === 'radio';
-}
-
-export function isGlobeStreamMapPoint(p: GlobeMapPoint): p is GlobeStreamPoint {
-  return p.kind === 'stream';
+export function isGlobeOutageMapPoint(p: GlobeMapPoint): p is GlobeOutagePoint {
+  return p.kind === 'outage';
 }
 
 export function mapPointMarkerId(p: GlobeMapPoint): string {
-  return isGlobeRadioPoint(p) ? p.markerId : p.channelLogin;
+  return p.markerId;
 }
+
