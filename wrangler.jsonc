@@ -2,6 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lucent",
   "main": "src/workers.ts",
+  "workers_dev": false,
+  "preview_urls": false,
   "compatibility_date": "2026-05-31",
   "observability": {
     "enabled": true
