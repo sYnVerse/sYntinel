@@ -165,35 +165,6 @@
     <div class="focus-stream-layer__column">
       <div class="focus-stream-layer__stack">
         <div class="focus-stream-layer__pane">
-          <app-focus-pomodoro
-            [soundMenuOpen]="focusSoundMenuVisible"
-            (soundMenuToggle)="toggleFocusSoundMenu()"
-            (soundMenuCloseRequest)="onSoundMenuCloseFromPomodoro()"
-          />
-
-          @if (focusSoundMenuVisible) {
-            <section
-              class="focus-pane-sound focus-pane-sound--panel"
-              role="region"
-              aria-label="Sound and ambient audio"
-            >
-              <h3 class="focus-pane-sound__eyebrow">Sound Options</h3>
-              
-              <label class="focus-pane-sound__field">
-                <span>Lo-fi beats</span>
-                <select
-                  class="focus-pane-sound__input"
-                  (change)="onFocusLofiChange($event)"
-                >
-                  @for (opt of focusLofiOptions; track opt.id) {
-                    <option [value]="opt.id" [selected]="opt.id === focusLofiSelectionId">
-                      {{ opt.label }}
-                    </option>
-                  }
-                </select>
-              </label>
-            </section>
-          }
         </div>
       </div>
       <button
