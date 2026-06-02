@@ -6,6 +6,7 @@ import {
   OnInit,
   ViewChild,
 } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { GlobeViewComponent } from './globe-view/globe-view.component';
 import type { GlobeOutagePoint } from './outage.models';
@@ -66,7 +67,7 @@ const PORTABLE_UI_MEDIA_QUERY =
 
 @Component({
   selector: 'app-root',
-  imports: [FocusPomodoroComponent, GlobeViewComponent, OutageSidebarComponent],
+  imports: [DecimalPipe, FocusPomodoroComponent, GlobeViewComponent, OutageSidebarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })

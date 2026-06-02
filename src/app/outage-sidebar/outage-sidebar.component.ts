@@ -12,13 +12,13 @@ import {
   ViewChild,
   inject,
 } from '@angular/core';
-import { DecimalPipe, NgIf, NgFor } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import type { GlobeOutagePoint } from '../outage.models';
 
 @Component({
   selector: 'app-outage-sidebar',
   standalone: true,
-  imports: [DecimalPipe, NgIf, NgFor],
+  imports: [DecimalPipe],
   templateUrl: './outage-sidebar.component.html',
   styleUrl: './outage-sidebar.component.css',
 })
