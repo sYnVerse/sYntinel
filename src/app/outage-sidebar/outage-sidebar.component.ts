@@ -31,20 +31,18 @@ export class OutageSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() outage: GlobeOutagePoint | null = null;
   @Input() allOutages: GlobeOutagePoint[] = [];
   @Input() currentSimulation = 'none';
+  @Input() dataLoaded = false;
+  @Input() apiMode: 'live' | 'simulated' | 'loading' = 'loading';
+  @Input() apiProvider = 'loading';
 
   get appMode(): 'live' | 'simulated' | 'loading' {
-    if (this.allOutages.length === 0) return 'loading';
-    return this.allOutages.some(o => o.platform === 'simulated') ? 'simulated' : 'live';
+    return this.apiMode;
   }
 
   get modeLabel(): string {
     if (this.appMode === 'loading') return 'Loading';
     if (this.appMode === 'simulated') return 'Simulation Mode';
-    const firstReal = this.allOutages.find(o => o.platform !== 'simulated');
-    if (firstReal) {
-      return `Live: ${firstReal.platform.toUpperCase()}`;
-    }
-    return 'Live Mode';
+    return `Live: ${this.apiProvider.toUpperCase()}`;
   }
 
   get modeExplanation(): string {
@@ -83,8 +81,8 @@ export class OutageSidebarComponent implements AfterViewInit, OnChanges, OnDestr
 
   get outageSearchDockSummary(): string {
     const active = this.allOutages.filter(o => o.status !== 'up').length;
-    if (this.allOutages.length === 0) return 'Loading…';
-    return active === 1 ? '1 active incident' : `${active} active incidents`;
+    if (!this.dataLoaded) return 'Loading…';
+    return active === 0 ? 'All systems operational' : (active === 1 ? '1 active incident' : `${active} active incidents`);
   }
 
   get sortedBrowseOutages(): GlobeOutagePoint[] {

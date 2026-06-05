@@ -98,19 +98,18 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Active simulation event: 'none' | 'solar-flare' | 'global-dns' | 'aws-collapse' */
   currentSimulation = 'none';
 
+  dataLoaded = false;
+  apiMode: 'live' | 'simulated' | 'loading' = 'loading';
+  apiProvider = 'loading';
+
   get appMode(): 'live' | 'simulated' | 'loading' {
-    if (this.allOutages.length === 0) return 'loading';
-    return this.allOutages.some(o => o.platform === 'simulated') ? 'simulated' : 'live';
+    return this.apiMode;
   }
 
   get modeLabel(): string {
     if (this.appMode === 'loading') return 'Loading';
     if (this.appMode === 'simulated') return 'Simulation Mode';
-    const firstReal = this.allOutages.find(o => o.platform !== 'simulated');
-    if (firstReal) {
-      return `Live: ${firstReal.platform.toUpperCase()}`;
-    }
-    return 'Live Mode';
+    return `Live: ${this.apiProvider.toUpperCase()}`;
   }
 
   get modeTooltip(): string {
@@ -246,12 +245,15 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  onOutagesCatalog(outages: GlobeOutagePoint[]): void {
-    this.allOutages = outages;
+  onOutagesCatalog(event: { outages: GlobeOutagePoint[]; mode: 'live' | 'simulated'; provider: string }): void {
+    this.allOutages = event.outages;
+    this.apiMode = event.mode;
+    this.apiProvider = event.provider;
+    this.dataLoaded = true;
     
     // Maintain selection reference if outages list refreshes
     if (this.selectedOutage) {
-      const match = outages.find(o => o.markerId === this.selectedOutage?.markerId);
+      const match = event.outages.find(o => o.markerId === this.selectedOutage?.markerId);
       if (match) {
         this.selectedOutage = match;
       }

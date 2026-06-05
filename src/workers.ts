@@ -90,31 +90,43 @@ function addCorsHeaders(response: Response, origin: string): Response {
 
 async function handleGetOutages(env: Env, simulateParam: string): Promise<Response> {
   let outages: OutageDto[] = [];
+  let fetchSuccessful = false;
 
   // Check if real API integrations are configured
   if (env.PINGDOM_API_KEY) {
     try {
       outages = await fetchPingdomOutages(env.PINGDOM_API_KEY);
+      fetchSuccessful = true;
     } catch (err) {
       console.error('Failed to fetch Pingdom outages, falling back:', err);
     }
   } else if (env.STATUSGATOR_API_KEY) {
     try {
       outages = await fetchStatusGatorOutages(env.STATUSGATOR_API_KEY);
+      fetchSuccessful = true;
     } catch (err) {
       console.error('Failed to fetch StatusGator outages, falling back:', err);
     }
   }
 
-  // Fallback to Simulation Mode if no keys configured or if simulated disaster triggered
-  if (outages.length === 0 || simulateParam !== 'none') {
+  const hasKeys = !!(env.PINGDOM_API_KEY || env.STATUSGATOR_API_KEY);
+  const isSimulation = !hasKeys || simulateParam !== 'none' || !fetchSuccessful;
+
+  if (isSimulation) {
     outages = generateSimulatedOutages(simulateParam);
   }
+
+  const activeMode = isSimulation ? 'simulated' : 'live';
+  const activeProvider = isSimulation 
+    ? 'simulated' 
+    : (env.PINGDOM_API_KEY ? 'pingdom' : 'statusgator');
 
   return new Response(JSON.stringify(outages), {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=10',
+      'X-Lucent-Mode': activeMode,
+      'X-Lucent-Provider': activeProvider
     },
   });
 }

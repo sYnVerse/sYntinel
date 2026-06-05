@@ -128,8 +128,10 @@
     @if (outageSearchSectionExpanded) {
       <div id="outage-search-expanded" class="stream-search-expanded" role="region" aria-labelledby="outage-search-toggle">
         <div class="stream-search-dock-inner">
-          @if (allOutages.length === 0) {
+          @if (!dataLoaded) {
             <p class="stream-browse-empty">Checking system status…</p>
+          } @else if (allOutages.length === 0) {
+            <p class="stream-browse-empty">All systems operational. No active incidents detected.</p>
           } @else {
             <ul class="stream-browse-list">
               @for (s of sortedBrowseOutages; track s.markerId) {

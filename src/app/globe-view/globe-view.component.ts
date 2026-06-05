@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { catchError, firstValueFrom, of } from 'rxjs';
 import {
   AfterViewInit,
@@ -85,7 +85,11 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   globeHost!: ElementRef<HTMLElement>;
 
   @Output() outageSelected = new EventEmitter<GlobeOutagePoint>();
-  @Output() outagesCatalogChange = new EventEmitter<GlobeOutagePoint[]>();
+  @Output() outagesCatalogChange = new EventEmitter<{
+    outages: GlobeOutagePoint[];
+    mode: 'live' | 'simulated';
+    provider: string;
+  }>();
 
   @Input() sidebarOpen = false;
   @Input() @HostBinding('class.globe-inset-snap') sidebarInsetSnap = false;
@@ -318,18 +322,26 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   private async fetchAndApplyOutages(isInitial: boolean): Promise<void> {
     if (!this.alive) return;
     const url = `${environment.outagesUrl}?simulate=${encodeURIComponent(this.currentSimulation)}`;
-    const rows = await firstValueFrom(
-      this.http.get<OutageDto[]>(url).pipe(
+    const response = await firstValueFrom(
+      this.http.get<OutageDto[]>(url, { observe: 'response' }).pipe(
         catchError((err) => {
           console.error('Outages API failed:', err);
-          return of([] as OutageDto[]);
+          return of(null);
         }),
       ),
     );
     if (!this.alive) return;
+    const rows = response?.body || [];
+    const mode = (response?.headers.get('X-Lucent-Mode') as 'live' | 'simulated') || 'simulated';
+    const provider = response?.headers.get('X-Lucent-Provider') || 'simulated';
+
     this.outagePoints = this.outageDtosToPoints(rows);
     if (isInitial) this.outagesInitialFetchCompleted = true;
-    this.ngZone.run(() => this.outagesCatalogChange.emit(this.outagePoints.slice()));
+    this.ngZone.run(() => this.outagesCatalogChange.emit({
+      outages: this.outagePoints.slice(),
+      mode,
+      provider
+    }));
     if (this.globe) {
       this.refreshMapMarkersOnGlobe();
       this.syncSelectedMapFocus();
