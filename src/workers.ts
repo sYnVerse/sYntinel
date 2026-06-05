@@ -170,7 +170,7 @@ async function fetchPingdomOutages(apiKey: string): Promise<OutageDto[]> {
         title: name,
         description: `Pingdom check reported ${check.status.toUpperCase()}. Target: ${check.hostname || 'N/A'}.`,
         link: `https://my.pingdom.com/`,
-        thumbnail: `https://cdn.simpleicons.org/${logo}/${color}`,
+        thumbnail: getThumbnailUrl(logo, color),
         latencyMs: check.lastresponsetime || (isDown ? 5000 : 800),
         latitude: loc.latitude,
         longitude: loc.longitude,
@@ -225,7 +225,7 @@ async function fetchStatusGatorOutages(apiKey: string): Promise<OutageDto[]> {
         title: serviceName,
         description: `StatusGator monitor reported service as ${statusText.toUpperCase()}. Details: ${monitor.attributes?.description || 'N/A'}.`,
         link: monitor.attributes?.home_url || `https://statusgator.com`,
-        thumbnail: `https://cdn.simpleicons.org/${logo}/${color}`,
+        thumbnail: getThumbnailUrl(logo, color),
         latencyMs: isDown ? 4500 : 1200,
         latitude: loc.latitude,
         longitude: loc.longitude,
@@ -254,6 +254,18 @@ function getLogoForName(name: string): string {
   if (n.includes('google')) return 'googlecloud';
   if (n.includes('microsoft') || n.includes('azure')) return 'microsoftazure';
   return 'statusgator'; // Fallback generic logo
+}
+
+function getThumbnailUrl(logoName: string, statusColor: string): string {
+  const removedFromSimpleIcons = ['slack', 'amazonaws', 'aws', 'openai', 'heroku'];
+  const name = logoName.toLowerCase();
+  
+  if (removedFromSimpleIcons.includes(name)) {
+    const slug = name === 'amazonaws' ? 'aws' : name;
+    return `https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/${slug}/default.svg`;
+  }
+  
+  return `https://cdn.simpleicons.org/${logoName}/${statusColor}`;
 }
 
 function generateSimulatedOutages(disaster: string): OutageDto[] {
@@ -314,7 +326,7 @@ function generateSimulatedOutages(disaster: string): OutageDto[] {
       title: item.name,
       description: desc,
       link: item.link,
-      thumbnail: `https://cdn.simpleicons.org/${item.logo}/${color}`,
+      thumbnail: getThumbnailUrl(item.logo, color),
       latencyMs: latency,
       latitude: jittered.latitude,
       longitude: jittered.longitude,
