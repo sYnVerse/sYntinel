@@ -472,6 +472,108 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Individual Card Platform Tag */
+.outage-card-platform-tag {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.52rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.outage-card-platform-tag[data-platform="simulated"] {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.05);
+  color: #fbbf24;
+}
+
+.outage-card-platform-tag[data-platform="statusgator"] {
+  border-color: rgba(59, 130, 246, 0.25);
+  background: rgba(59, 130, 246, 0.05);
+  color: #60a5fa;
+}
+
+.outage-card-platform-tag[data-platform="pingdom"] {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.05);
+  color: #34d399;
+}
+
+/* Sidebar Mode Banner */
+.sidebar-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-mode-banner[data-mode="loading"] {
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar-mode-banner[data-mode="loading"] .banner-dot {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.sidebar-mode-banner[data-mode="live"] {
+  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.sidebar-mode-banner[data-mode="live"] .banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: mode-badge-pulse 2.5s ease-in-out infinite;
+}
+
+.sidebar-mode-banner[data-mode="simulated"] {
+  background: rgba(245, 158, 11, 0.04);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.sidebar-mode-banner[data-mode="simulated"] .banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  animation: mode-badge-pulse 1.8s ease-in-out infinite;
+}
+
+.banner-dot {
+  flex-shrink: 0;
+}
+
+@keyframes mode-badge-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
 }
 
 /* Active card styles */

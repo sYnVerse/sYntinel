@@ -15,14 +15,22 @@
 @if (!focusMode) {
   <div class="site-brand">
     <h1 class="site-title">lucent.earth</h1>
-    <div class="site-credits" aria-label="Source code">
-      <a
-        class="site-credits-link"
-        href="https://github.com/cppshane/lucent"
-        target="_blank"
-        rel="noopener noreferrer"
-        >GitHub</a
-      >
+    <div class="site-brand-meta">
+      <div class="site-credits" aria-label="Source code">
+        <a
+          class="site-credits-link"
+          href="https://github.com/cppshane/lucent"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
+      </div>
+      @if (appMode !== 'loading') {
+        <div class="app-mode-badge" [attr.data-mode]="appMode" [title]="modeTooltip">
+          <span class="mode-badge-dot"></span>
+          <span class="mode-badge-text">{{ modeLabel }}</span>
+        </div>
+      }
     </div>
   </div>
 }
@@ -101,7 +109,12 @@
               @if (selectedOutage) {
                 <img [src]="selectedOutage.thumbnail" class="focus-dashboard-logo" alt="" />
               }
-              <span class="focus-dashboard-title">{{ selectedOutage ? selectedOutage.title : 'Global Network Systems' }}</span>
+              <div class="focus-dashboard-title-group">
+                <span class="focus-dashboard-title">{{ selectedOutage ? selectedOutage.title : 'Global Network Systems' }}</span>
+                <span class="focus-dashboard-subtitle" [attr.data-platform]="selectedOutage ? selectedOutage.platform : appMode">
+                  {{ selectedOutage ? (selectedOutage.platform === 'simulated' ? 'SIMULATED DATA' : selectedOutage.platform.toUpperCase() + ' API') : (appMode === 'simulated' ? 'SIMULATION MODE' : 'LIVE FEED') }}
+                </span>
+              </div>
             </div>
             <div class="focus-dashboard-status-tag" [attr.data-status]="selectedOutage ? selectedOutage.status : 'up'">
               <span class="status-pulse-dot"></span>

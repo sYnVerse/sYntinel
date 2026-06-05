@@ -31,6 +31,32 @@ export class OutageSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() outage: GlobeOutagePoint | null = null;
   @Input() allOutages: GlobeOutagePoint[] = [];
   @Input() currentSimulation = 'none';
+
+  get appMode(): 'live' | 'simulated' | 'loading' {
+    if (this.allOutages.length === 0) return 'loading';
+    return this.allOutages.some(o => o.platform === 'simulated') ? 'simulated' : 'live';
+  }
+
+  get modeLabel(): string {
+    if (this.appMode === 'loading') return 'Loading';
+    if (this.appMode === 'simulated') return 'Simulation Mode';
+    const firstReal = this.allOutages.find(o => o.platform !== 'simulated');
+    if (firstReal) {
+      return `Live: ${firstReal.platform.toUpperCase()}`;
+    }
+    return 'Live Mode';
+  }
+
+  get modeExplanation(): string {
+    if (this.appMode === 'loading') return 'Loading status data…';
+    if (this.appMode === 'simulated') {
+      if (this.currentSimulation !== 'none') {
+        return 'Disaster preset override active';
+      }
+      return 'Running in simulated sandbox mode';
+    }
+    return `Connected to live ${this.modeLabel} feed`;
+  }
   
   @Output() closing = new EventEmitter<void>();
   @Output() closed = new EventEmitter<void>();

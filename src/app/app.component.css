@@ -62,7 +62,7 @@
 }
 
 .site-credits {
-  margin: 0.2rem 0 0;
+  margin: 0;
   padding: 0;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: clamp(0.62rem, 1.35vw, 0.72rem);
@@ -84,6 +84,78 @@
   color: rgba(232, 234, 237, 0.88);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.site-brand-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+}
+
+/* Premium App Mode Badge */
+.app-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: auto;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.app-mode-badge:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.mode-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.app-mode-badge[data-mode="live"] {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.04);
+  color: #34d399;
+}
+
+.app-mode-badge[data-mode="live"] .mode-badge-dot {
+  background: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: mode-badge-pulse 2.5s ease-in-out infinite;
+}
+
+.app-mode-badge[data-mode="simulated"] {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.04);
+  color: #fbbf24;
+}
+
+.app-mode-badge[data-mode="simulated"] .mode-badge-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  animation: mode-badge-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes mode-badge-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
 }
 
 /*
@@ -648,6 +720,32 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   color: rgba(232, 234, 237, 0.92);
+}
+
+.focus-dashboard-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.focus-dashboard-subtitle {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.focus-dashboard-subtitle[data-platform="simulated"] {
+  color: #fbbf24;
+}
+
+.focus-dashboard-subtitle[data-platform="statusgator"] {
+  color: #60a5fa;
+}
+
+.focus-dashboard-subtitle[data-platform="pingdom"] {
+  color: #34d399;
 }
 
 .focus-dashboard-status-tag {

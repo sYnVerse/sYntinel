@@ -98,6 +98,32 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Active simulation event: 'none' | 'solar-flare' | 'global-dns' | 'aws-collapse' */
   currentSimulation = 'none';
 
+  get appMode(): 'live' | 'simulated' | 'loading' {
+    if (this.allOutages.length === 0) return 'loading';
+    return this.allOutages.some(o => o.platform === 'simulated') ? 'simulated' : 'live';
+  }
+
+  get modeLabel(): string {
+    if (this.appMode === 'loading') return 'Loading';
+    if (this.appMode === 'simulated') return 'Simulation Mode';
+    const firstReal = this.allOutages.find(o => o.platform !== 'simulated');
+    if (firstReal) {
+      return `Live: ${firstReal.platform.toUpperCase()}`;
+    }
+    return 'Live Mode';
+  }
+
+  get modeTooltip(): string {
+    if (this.appMode === 'loading') return 'Fetching system outage data…';
+    if (this.appMode === 'simulated') {
+      if (this.currentSimulation !== 'none') {
+        return 'Override active: Showing simulated disaster scenario (click Normal Simulation below to reset).';
+      }
+      return 'Connected to Simulated Sandbox (no StatusGator/Pingdom API keys configured in the backend environment).';
+    }
+    return `Connected to live ${this.modeLabel} API. Displaying real-time outages.`;
+  }
+
   readonly focusLofiOptions = FOCUS_LOFI_OPTIONS;
   focusLofiSelectionId = 'off';
   focusLofiEmbedUrl: SafeResourceUrl | null = null;

@@ -14,6 +14,12 @@
   }
 
   <div class="panel-scroll panel-scroll--browse">
+    <!-- Global Mode Banner inside sidebar -->
+    <div class="sidebar-mode-banner" [attr.data-mode]="appMode">
+      <span class="banner-dot"></span>
+      <span class="banner-text">{{ modeExplanation }}</span>
+    </div>
+
     @if (outage) {
       <div class="outage-detail-block">
         <div class="outage-header-row">
@@ -143,6 +149,9 @@
                           <span class="outage-browse-status-dot" [attr.data-status]="s.status" aria-hidden="true"></span>
                         </div>
                         <div class="outage-browse-row outage-browse-row--meta">
+                          <span class="outage-card-platform-tag" [attr.data-platform]="s.platform">
+                            {{ s.platform === 'simulated' ? 'Simulated' : s.platform.toUpperCase() }}
+                          </span>
                           <span class="stream-browse-card-views">{{ s.latencyMs | number }} ms</span>
                           <span class="stream-browse-card-desc">{{ s.description }}</span>
                         </div>
