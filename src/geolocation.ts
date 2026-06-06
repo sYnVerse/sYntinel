@@ -286,29 +286,7 @@ export const CountryCoordinates: Record<string, GeoLocation> = {
   kenya:            { latitude: -0.0236,  longitude: 37.9062,   uncertaintyKm: 300 },
 };
 
-// ─── Known curated Twitch IRL streamers → fallback location ──────────────────
-export const CuratedTwitchStreamers: Record<string, GeoLocation> = {
-  jakenbakelive: { latitude: 35.6762, longitude: 139.6503, uncertaintyKm: 30 },
-  hachubby:      { latitude: 37.5665, longitude: 126.9780, uncertaintyKm: 10 },
-  exbc:          { latitude: 37.5665, longitude: 126.9780, uncertaintyKm: 10 },
-  robcdfs:       { latitude: 35.6762, longitude: 139.6503, uncertaintyKm: 20 },
-  roamingtours:  { latitude: 51.5074, longitude: -0.1278,  uncertaintyKm: 10 },
-  joeykaotyk:    { latitude: 25.0330, longitude: 121.5654, uncertaintyKm: 25 },
-  cooksux:       { latitude: 34.0522, longitude: -118.2437,uncertaintyKm: 20 },
-  extraemily:    { latitude: 30.2672, longitude: -97.7431, uncertaintyKm: 10 },
-};
 
-// ─── Known curated Kick IRL streamers ────────────────────────────────────────
-export const CuratedKickStreamers: Record<string, GeoLocation> = {
-  iceposeidon: { latitude: 34.0522,  longitude: -118.2437, uncertaintyKm: 50 },
-  nino:        { latitude: 35.6762,  longitude: 139.6503,  uncertaintyKm: 30 },
-};
-
-// ─── YouTube EarthCam channel IDs to search for live streams ─────────────────
-// Source: youtube.com/@earthcam (verified channel handle)
-export const YouTubeChannelIds = [
-  'UCi_1yBKBGDVIEQVSXQqIHaA', // EarthCam Network
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

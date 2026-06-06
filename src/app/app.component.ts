@@ -7,10 +7,8 @@ import {
   ViewChild,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { GlobeViewComponent } from './globe-view/globe-view.component';
 import type { GlobeOutagePoint } from './outage.models';
-import { FocusPomodoroComponent } from './focus-pomodoro/focus-pomodoro.component';
 import { OutageSidebarComponent } from './outage-sidebar/outage-sidebar.component';
 
 /**
@@ -18,45 +16,6 @@ import { OutageSidebarComponent } from './outage-sidebar/outage-sidebar.componen
  * exists in the active catalog is auto-selected.
  */
 const FOCUS_FALLBACK_OUTAGE_KEYS: readonly string[] = ['simulated-github'];
-
-/** Lo-fi ambient streams (YouTube embeds, bottom-left dock in Focus mode). */
-const FOCUS_LOFI_OPTIONS: readonly {
-  id: string;
-  label: string;
-  videoId: string | null;
-}[] = [
-  { id: 'off', label: 'Off', videoId: null },
-  {
-    id: 'lofi-jfk',
-    label: 'lofi hip hop radio 📚 beats to relax/study to',
-    videoId: 'jfKfPfyJRdk',
-  },
-  {
-    id: 'lofi-classical',
-    label: 'classical music radio 🎻 relaxing songs to read/study to',
-    videoId: 'jXAEIWcGXwE',
-  },
-  {
-    id: 'lofi-jazz',
-    label: 'relaxing jazz music 🌹 cozy radio to study/chill to',
-    videoId: 'A8jDx9TLMQc',
-  },
-  {
-    id: 'lofi-fireplace',
-    label: 'fireplace ambience 🔥 cozy sound to chill to',
-    videoId: 'q_4KI-ChIIs',
-  },
-  {
-    id: 'lofi-guitar',
-    label: 'chill guitar radio 🎸 music to study/relax to',
-    videoId: 'E_XmwjgRLz8',
-  },
-  {
-    id: 'lofi-sleep-ambient',
-    label: 'sleep ambient music 💤 relaxing radio to fall asleep to',
-    videoId: 'xORCbIptqcc',
-  },
-];
 
 /** Covers layout + WebGL churn while entering/leaving Focus mode */
 const FOCUS_MODE_TRANSITION_MS = 1100;
@@ -67,7 +26,7 @@ const PORTABLE_UI_MEDIA_QUERY =
 
 @Component({
   selector: 'app-root',
-  imports: [DecimalPipe, FocusPomodoroComponent, GlobeViewComponent, OutageSidebarComponent],
+  imports: [DecimalPipe, GlobeViewComponent, OutageSidebarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -92,7 +51,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly cdr: ChangeDetectorRef,
-    private readonly sanitizer: DomSanitizer,
   ) {}
 
   /** Active simulation event: 'none' | 'solar-flare' | 'global-dns' | 'aws-collapse' */
@@ -122,12 +80,6 @@ export class AppComponent implements OnInit, OnDestroy {
     }
     return `Connected to live ${this.modeLabel} API. Displaying real-time outages.`;
   }
-
-  readonly focusLofiOptions = FOCUS_LOFI_OPTIONS;
-  focusLofiSelectionId = 'off';
-  focusLofiEmbedUrl: SafeResourceUrl | null = null;
-  focusLofiSoundGateVisible = false;
-  focusSoundMenuVisible = false;
 
   ngOnDestroy(): void {
     if (this.focusTransitionClearId !== null) {
@@ -188,18 +140,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
     const runToggle = (): void => {
       this.focusMode = !this.focusMode;
-      if (!this.focusMode) {
-        this.focusLofiEmbedUrl = null;
-        this.focusLofiSoundGateVisible = false;
-        this.focusSoundMenuVisible = false;
-      }
       if (this.focusMode) {
         this.panelCloseAnimationStarted = false;
         if (this.selectedOutage) {
           this.sidebarInsetPx = 0;
         }
-        this.maybeDefaultLofi();
-        this.reapplyFocusLofiEmbedIfNeeded();
       } else if (this.sidebarOpen) {
         this.sidebarInsetPx = 640;
       }
@@ -279,27 +224,9 @@ export class AppComponent implements OnInit, OnDestroy {
         this.sidebarInsetPx = 0;
       }
     }
-    queueMicrotask(() => {
-      if (this.focusMode) {
-        this.maybeDefaultLofi();
-        this.reapplyFocusLofiEmbedIfNeeded();
-      }
-    });
   }
 
-  toggleFocusSoundMenu(): void {
-    this.focusSoundMenuVisible = !this.focusSoundMenuVisible;
-  }
 
-  onSoundMenuCloseFromPomodoro(): void {
-    this.focusSoundMenuVisible = false;
-  }
-
-  private maybeDefaultLofi(): void {
-    if (this.focusLofiSelectionId === 'off') {
-      this.focusLofiSelectionId = 'lofi-jfk';
-    }
-  }
 
   onOutageSelected(outage: GlobeOutagePoint): void {
     this.selectedOutage = outage;
@@ -329,41 +256,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.sidebarInsetPx = Math.max(0, Math.round(px));
   }
 
-  onFocusLofiChange(ev: Event): void {
-    const id = (ev.target as HTMLSelectElement).value;
-    this.focusLofiSelectionId = id;
-    this.reapplyFocusLofiEmbedIfNeeded();
-  }
 
-  private reapplyFocusLofiEmbedIfNeeded(): void {
-    if (!this.focusMode) {
-      this.focusLofiEmbedUrl = null;
-      this.focusLofiSoundGateVisible = false;
-      return;
-    }
-    const opt = FOCUS_LOFI_OPTIONS.find((o) => o.id === this.focusLofiSelectionId);
-    const vid = opt?.videoId;
-    if (!vid) {
-      this.focusLofiEmbedUrl = null;
-      this.focusLofiSoundGateVisible = false;
-      return;
-    }
-    const raw = `https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&playsinline=1&mute=1&syntinel_ap=${Date.now()}`;
-    this.focusLofiEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
-    this.focusLofiSoundGateVisible = true;
-  }
-
-  unlockFocusLofiSound(iframe: HTMLIFrameElement): void {
-    const opt = FOCUS_LOFI_OPTIONS.find((o) => o.id === this.focusLofiSelectionId);
-    const vid = opt?.videoId;
-    if (!vid) {
-      return;
-    }
-    const raw = `https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&playsinline=1&mute=0&syntinel_ap=${Date.now()}`;
-    iframe.src = raw;
-    this.focusLofiEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
-    this.focusLofiSoundGateVisible = false;
-  }
 
   private applyFocusFallbackOutageIfNeeded(): void {
     if (this.selectedOutage || this.allOutages.length === 0) {
