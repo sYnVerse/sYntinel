@@ -125,8 +125,8 @@ async function handleGetOutages(env: Env, simulateParam: string): Promise<Respon
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=10',
-      'X-Lucent-Mode': activeMode,
-      'X-Lucent-Provider': activeProvider
+      'X-sYntinel-Mode': activeMode,
+      'X-sYntinel-Provider': activeProvider
     },
   });
 }

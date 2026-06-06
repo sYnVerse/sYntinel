@@ -1,8 +1,8 @@
-# [lucent](https://lucent.christran.io)
+# sYntinel
 
 Real-time 3D globe visualization of global service outages and infrastructure health.
 
-![lucent-small](https://github.com/user-attachments/assets/43fcc3b1-2a4e-46a1-a759-88b6035b7921)
+![sYntinel-small](https://github.com/user-attachments/assets/43fcc3b1-2a4e-46a1-a759-88b6035b7921)
 
 ## Features
 
@@ -95,7 +95,7 @@ wrangler.jsonc                          # Cloudflare Workers config
 
 ## Credits
 
-Forked from [**lucent.earth**](https://github.com/cppshane/lucent) by [cppshane](https://github.com/cppshane) — the original real-time globe visualization of global live streams and radio stations.
+Based on the original real-time globe visualization concept by [cppshane](https://github.com/cppshane).
 
 ## License
 

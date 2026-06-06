@@ -332,8 +332,8 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
     );
     if (!this.alive) return;
     const rows = response?.body || [];
-    const mode = (response?.headers.get('X-Lucent-Mode') as 'live' | 'simulated') || 'simulated';
-    const provider = response?.headers.get('X-Lucent-Provider') || 'simulated';
+    const mode = (response?.headers.get('X-sYntinel-Mode') as 'live' | 'simulated') || 'simulated';
+    const provider = response?.headers.get('X-sYntinel-Provider') || 'simulated';
 
     this.outagePoints = this.outageDtosToPoints(rows);
     if (isInitial) this.outagesInitialFetchCompleted = true;

@@ -11,8 +11,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-const LS_SETTINGS = 'lucent-focus-pomodoro-settings';
-const LS_TASKS = 'lucent-focus-pomodoro-tasks';
+const LS_SETTINGS = 'syntinel-focus-pomodoro-settings';
+const LS_TASKS = 'syntinel-focus-pomodoro-tasks';
 
 /** Max stroke length (path units) for the 270° arc — matches track dash `750` of `pathLength` 1000 */
 const ARC_UNITS = 750;
@@ -218,9 +218,9 @@ export class FocusPomodoroComponent implements OnInit, OnDestroy {
         phase === 'work'
           ? 'Focus block complete. Time for a break.'
           : 'Break complete. Ready for the next focus block.';
-      new Notification('lucent.earth · Focus', {
+      new Notification('sYntinel · Focus', {
         body,
-        tag: 'lucent-pomodoro',
+        tag: 'syntinel-pomodoro',
       });
     } catch {
       /* ignore */

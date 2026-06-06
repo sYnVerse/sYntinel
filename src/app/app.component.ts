@@ -348,7 +348,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.focusLofiSoundGateVisible = false;
       return;
     }
-    const raw = `https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&playsinline=1&mute=1&lucent_ap=${Date.now()}`;
+    const raw = `https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&playsinline=1&mute=1&syntinel_ap=${Date.now()}`;
     this.focusLofiEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
     this.focusLofiSoundGateVisible = true;
   }
@@ -359,7 +359,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!vid) {
       return;
     }
-    const raw = `https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&playsinline=1&mute=0&lucent_ap=${Date.now()}`;
+    const raw = `https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&playsinline=1&mute=0&syntinel_ap=${Date.now()}`;
     iframe.src = raw;
     this.focusLofiEmbedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(raw);
     this.focusLofiSoundGateVisible = false;

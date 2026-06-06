@@ -1,4 +1,4 @@
-/** Matches LucentApi OutageDto JSON (camelCase). */
+/** Matches sYntinel API OutageDto JSON (camelCase). */
 export interface OutageDto {
   id: string;
   title: string;

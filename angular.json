@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "lucent-angular": {
+    "syntinel-angular": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -13,7 +13,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/lucent-angular",
+            "outputPath": "dist/syntinel-angular",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
@@ -80,10 +80,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "lucent-angular:build:production"
+              "buildTarget": "syntinel-angular:build:production"
             },
             "development": {
-              "buildTarget": "lucent-angular:build:development"
+              "buildTarget": "syntinel-angular:build:development"
             }
           },
           "defaultConfiguration": "development"
