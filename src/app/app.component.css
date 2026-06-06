@@ -913,3 +913,25 @@
   color: rgba(203, 213, 225, 0.85);
   word-break: break-word;
 }
+
+.app-footer-overlay {
+  position: absolute;
+  bottom: 1rem;
+  left: 1.25rem;
+  z-index: 20;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: rgba(232, 234, 237, 0.4);
+  pointer-events: auto;
+}
+
+.app-footer-overlay a {
+  color: #3b82f6;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.app-footer-overlay a:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
