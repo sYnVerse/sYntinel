@@ -15,7 +15,7 @@ Real-time 3D globe visualization of global service outages and infrastructure he
   - ☀️ Solar Flare (global collapse)
   - 🌐 DNS Backbone Collapsed
   - ☁️ AWS Cloud Core Outage
-- **Focus Mode** — full-screen system monitor dashboard with Pomodoro timer and ambient lo-fi music
+- **Focus Mode** - full-screen system monitor dashboard for distraction-free monitoring
 - **API Integration** — supports [Pingdom](https://www.pingdom.com/) and [StatusGator](https://statusgator.com/) APIs, with a built-in simulation engine as fallback
 
 ## Tech Stack
@@ -85,7 +85,6 @@ src/
 │   ├── globe-map.models.ts             # Globe data types
 │   ├── globe-view/                     # 3D globe (globe.gl + Three.js)
 │   ├── outage-sidebar/                 # Sidebar — monitor widget, outage list, simulator
-│   └── focus-pomodoro/                 # Pomodoro timer for focus mode
 ├── environments/
 │   ├── environment.ts                  # Dev config
 │   └── environment.production.ts       # Prod config
