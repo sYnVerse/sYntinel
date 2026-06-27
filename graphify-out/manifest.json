@@ -1,0 +1,182 @@
+{
+  ".vscode/extensions.json": {
+    "mtime": 1780696014.905767,
+    "ast_hash": "66fd9e60d4633b6099fe02e06a7075ea",
+    "semantic_hash": "66fd9e60d4633b6099fe02e06a7075ea"
+  },
+  ".vscode/launch.json": {
+    "mtime": 1780696014.906767,
+    "ast_hash": "430386a2f03e9d559664c196344c121b",
+    "semantic_hash": "430386a2f03e9d559664c196344c121b"
+  },
+  ".vscode/tasks.json": {
+    "mtime": 1780696014.906767,
+    "ast_hash": "d2fc2624d783980be281b4cf0acc2455",
+    "semantic_hash": "d2fc2624d783980be281b4cf0acc2455"
+  },
+  "angular.json": {
+    "mtime": 1780710659.7730205,
+    "ast_hash": "01f21fc6c84450d3024e4f579e624ec3",
+    "semantic_hash": "01f21fc6c84450d3024e4f579e624ec3"
+  },
+  "package.json": {
+    "mtime": 1780710660.8082533,
+    "ast_hash": "dd75d29316d572df24390f52c383788e",
+    "semantic_hash": "dd75d29316d572df24390f52c383788e"
+  },
+  "proxy.conf.json": {
+    "mtime": 1780696014.9137745,
+    "ast_hash": "9fd4617cc762ce6b48a72f65f5c6359f",
+    "semantic_hash": "9fd4617cc762ce6b48a72f65f5c6359f"
+  },
+  "src/_routes.json": {
+    "mtime": 1780696014.9319093,
+    "ast_hash": "1abeae7bcc5de173bb16702c85f3bb16",
+    "semantic_hash": "1abeae7bcc5de173bb16702c85f3bb16"
+  },
+  "src/app/app.component.spec.ts": {
+    "mtime": 1780696014.9344397,
+    "ast_hash": "579fd9069d0080a7d6a3a5028fb758ae",
+    "semantic_hash": "579fd9069d0080a7d6a3a5028fb758ae"
+  },
+  "src/app/app.component.ts": {
+    "mtime": 1780711360.828582,
+    "ast_hash": "058610dc072f8899af88501775609aeb",
+    "semantic_hash": "058610dc072f8899af88501775609aeb"
+  },
+  "src/app/app.config.ts": {
+    "mtime": 1780696014.9354546,
+    "ast_hash": "7a82b8c86e4594311e55d04d3349306c",
+    "semantic_hash": "7a82b8c86e4594311e55d04d3349306c"
+  },
+  "src/app/globe-map.models.ts": {
+    "mtime": 1780696014.9806864,
+    "ast_hash": "a6f8c594f0130c7ede2de0fc7f82d916",
+    "semantic_hash": "a6f8c594f0130c7ede2de0fc7f82d916"
+  },
+  "src/app/globe-view/day-night-globe.ts": {
+    "mtime": 1780696014.9812064,
+    "ast_hash": "49c556c3b1c8d17efdeb2df5c79ffeba",
+    "semantic_hash": "49c556c3b1c8d17efdeb2df5c79ffeba"
+  },
+  "src/app/globe-view/globe-view.component.ts": {
+    "mtime": 1780710651.0817735,
+    "ast_hash": "cab70a4c292d76e121d52d2eddaa3686",
+    "semantic_hash": "cab70a4c292d76e121d52d2eddaa3686"
+  },
+  "src/app/globe-view/solar-calculator.d.ts": {
+    "mtime": 1780696014.9832282,
+    "ast_hash": "e2cfb0c575260de6b6b7d93078d2404a",
+    "semantic_hash": "e2cfb0c575260de6b6b7d93078d2404a"
+  },
+  "src/app/outage-sidebar/outage-sidebar.component.ts": {
+    "mtime": 1780696909.8221533,
+    "ast_hash": "d8e8f6b348a97ca496933077304a23f8",
+    "semantic_hash": "d8e8f6b348a97ca496933077304a23f8"
+  },
+  "src/app/outage.models.ts": {
+    "mtime": 1780710652.3914986,
+    "ast_hash": "7438ef2ef39059c9ea0c192b8cb008ac",
+    "semantic_hash": "7438ef2ef39059c9ea0c192b8cb008ac"
+  },
+  "src/environments/environment.production.ts": {
+    "mtime": 1780710654.1273363,
+    "ast_hash": "c5433479770b904dfd6198df22762c5f",
+    "semantic_hash": "c5433479770b904dfd6198df22762c5f"
+  },
+  "src/environments/environment.ts": {
+    "mtime": 1780710655.2171745,
+    "ast_hash": "042adb7de810aef9bab11d3a88009289",
+    "semantic_hash": "042adb7de810aef9bab11d3a88009289"
+  },
+  "src/geolocation.ts": {
+    "mtime": 1780711366.2431457,
+    "ast_hash": "e8485cc43494d8aacae347d7b8d08a49",
+    "semantic_hash": "e8485cc43494d8aacae347d7b8d08a49"
+  },
+  "src/main.ts": {
+    "mtime": 1780696014.990742,
+    "ast_hash": "b5c1d106e573fea21ef1ad9e4360e77a",
+    "semantic_hash": "b5c1d106e573fea21ef1ad9e4360e77a"
+  },
+  "src/workers.ts": {
+    "mtime": 1780710656.4315677,
+    "ast_hash": "4eda0651c7238a649ab73ef7bf39f38c",
+    "semantic_hash": "4eda0651c7238a649ab73ef7bf39f38c"
+  },
+  "tsconfig.app.json": {
+    "mtime": 1780696014.992759,
+    "ast_hash": "8d99fdcdf658986569ea23b33df685a6",
+    "semantic_hash": "8d99fdcdf658986569ea23b33df685a6"
+  },
+  "tsconfig.json": {
+    "mtime": 1780696014.992759,
+    "ast_hash": "dd3c8905847764e8a227c8bbb23ffab6",
+    "semantic_hash": "dd3c8905847764e8a227c8bbb23ffab6"
+  },
+  "tsconfig.spec.json": {
+    "mtime": 1780696014.993765,
+    "ast_hash": "fde196cef563197a78958ceaea284638",
+    "semantic_hash": "fde196cef563197a78958ceaea284638"
+  },
+  ".github/dependabot.yml": {
+    "mtime": 1781982138.6259236,
+    "ast_hash": "e88fe69cc3dea88f3b301895f96004fb",
+    "semantic_hash": "e88fe69cc3dea88f3b301895f96004fb"
+  },
+  "README.md": {
+    "mtime": 1780711320.250779,
+    "ast_hash": "7d8dc5333991835b113a639680c9523c",
+    "semantic_hash": "7d8dc5333991835b113a639680c9523c"
+  },
+  "src/app/app.component.html": {
+    "mtime": 1780772896.971211,
+    "ast_hash": "dd1fe5048e348e93f1a060dc7314ad47",
+    "semantic_hash": "dd1fe5048e348e93f1a060dc7314ad47"
+  },
+  "src/app/outage-sidebar/outage-sidebar.component.html": {
+    "mtime": 1780696913.2198687,
+    "ast_hash": "4721525405eab3d84748edc6b67403cd",
+    "semantic_hash": "4721525405eab3d84748edc6b67403cd"
+  },
+  "src/index.html": {
+    "mtime": 1780710645.7275572,
+    "ast_hash": "e527084ed77e62e9eb2911bffee4b9a8",
+    "semantic_hash": "e527084ed77e62e9eb2911bffee4b9a8"
+  },
+  "public/globe/nasa-blue-marble.jpg": {
+    "mtime": 1780696014.923909,
+    "ast_hash": "8ec81bb437b68fdb4bd46604ff698736",
+    "semantic_hash": "8ec81bb437b68fdb4bd46604ff698736"
+  },
+  "public/globe/nasa-earth-at-night.jpg": {
+    "mtime": 1780696014.9309113,
+    "ast_hash": "5350543dfb8e809a3bcc0724df2dc443",
+    "semantic_hash": "5350543dfb8e809a3bcc0724df2dc443"
+  },
+  "src/app/assets/favicon_io/android-chrome-192x192.png": {
+    "mtime": 1780696014.9364464,
+    "ast_hash": "48b377f4d499be1d8977de6bb8905089",
+    "semantic_hash": "48b377f4d499be1d8977de6bb8905089"
+  },
+  "src/app/assets/favicon_io/android-chrome-512x512.png": {
+    "mtime": 1780696014.9374447,
+    "ast_hash": "3b25c6309e9bd06174d105999af42501",
+    "semantic_hash": "3b25c6309e9bd06174d105999af42501"
+  },
+  "src/app/assets/favicon_io/apple-touch-icon.png": {
+    "mtime": 1780696014.938443,
+    "ast_hash": "b03fd0a29cc96f9a971f98f846eacd5b",
+    "semantic_hash": "b03fd0a29cc96f9a971f98f846eacd5b"
+  },
+  "src/app/assets/favicon_io/favicon-16x16.png": {
+    "mtime": 1780696014.939435,
+    "ast_hash": "5c9bd7dbd197519d0636211c571e0e6a",
+    "semantic_hash": "5c9bd7dbd197519d0636211c571e0e6a"
+  },
+  "src/app/assets/favicon_io/favicon-32x32.png": {
+    "mtime": 1780696014.939435,
+    "ast_hash": "bb94dde8e24fb6f06ef82f1f39cde599",
+    "semantic_hash": "bb94dde8e24fb6f06ef82f1f39cde599"
+  }
+}
