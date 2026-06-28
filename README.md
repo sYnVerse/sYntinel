@@ -43,16 +43,20 @@ npm install
 
 ### Development
 
-Start the Angular dev server (proxies `/api` to Wrangler on port 8787):
+The Angular dev server proxies `/api` to Wrangler on port 8787, so **both processes must be running**:
 
 ```bash
+# Terminal 1 — Angular dev server
 npm start
+
+# Terminal 2 — Cloudflare Worker (serves /api/outages)
+npx wrangler dev
 ```
 
-In a separate terminal, start the Cloudflare Worker locally:
+Alternatively, build and run everything through Wrangler on a single port:
 
 ```bash
-npx wrangler dev
+npm run preview
 ```
 
 ### Production Build & Deploy
@@ -65,14 +69,24 @@ This runs `ng build --configuration production` followed by `wrangler deploy`.
 
 ## API Configuration
 
-The app works out of the box with its built-in simulation engine. To connect real monitoring APIs, add your tokens as Wrangler secrets:
+The app works out of the box with its built-in simulation engine. To connect real monitoring APIs, add your tokens as Wrangler secrets (either name works for each provider):
 
 ```bash
-npx wrangler secret put PINGDOM_API_TOKEN
-npx wrangler secret put STATUSGATOR_API_TOKEN
+npx wrangler secret put PINGDOM_API_KEY
+# or: npx wrangler secret put PINGDOM_API_TOKEN
+
+npx wrangler secret put STATUSGATOR_API_KEY
+# or: npx wrangler secret put STATUSGATOR_API_TOKEN
 ```
 
-When configured, the worker merges real API data with simulated services. Without tokens, all outage data is generated from the simulation engine.
+For local development, create a `.dev.vars` file in the project root:
+
+```bash
+PINGDOM_API_KEY=your_pingdom_bearer_token
+# STATUSGATOR_API_KEY=your_statusgator_bearer_token
+```
+
+When configured, the worker fetches live outage data from the provider. Without tokens, all outage data is generated from the simulation engine.
 
 ## Project Structure
 

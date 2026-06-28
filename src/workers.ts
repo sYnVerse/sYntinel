@@ -5,9 +5,22 @@ import {
 
 export interface Env {
   PINGDOM_API_KEY?: string;
+  PINGDOM_API_TOKEN?: string;
   STATUSGATOR_API_KEY?: string;
+  STATUSGATOR_API_TOKEN?: string;
   ASSETS?: {
     fetch: (request: Request) => Promise<Response>;
+  };
+}
+
+function resolveMonitoringCredentials(env: Env): {
+  pingdom?: string;
+  statusGator?: string;
+} {
+  return {
+    pingdom: env.PINGDOM_API_KEY?.trim() || env.PINGDOM_API_TOKEN?.trim() || undefined,
+    statusGator:
+      env.STATUSGATOR_API_KEY?.trim() || env.STATUSGATOR_API_TOKEN?.trim() || undefined,
   };
 }
 
@@ -80,6 +93,7 @@ function addCorsHeaders(response: Response, origin: string): Response {
   headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  headers.set('Access-Control-Expose-Headers', 'X-sYntinel-Mode, X-sYntinel-Provider');
   
   return new Response(response.body, {
     status: response.status,
@@ -91,25 +105,26 @@ function addCorsHeaders(response: Response, origin: string): Response {
 async function handleGetOutages(env: Env, simulateParam: string): Promise<Response> {
   let outages: OutageDto[] = [];
   let fetchSuccessful = false;
+  const credentials = resolveMonitoringCredentials(env);
 
   // Check if real API integrations are configured
-  if (env.PINGDOM_API_KEY) {
+  if (credentials.pingdom) {
     try {
-      outages = await fetchPingdomOutages(env.PINGDOM_API_KEY);
+      outages = await fetchPingdomOutages(credentials.pingdom);
       fetchSuccessful = true;
     } catch (err) {
       console.error('Failed to fetch Pingdom outages, falling back:', err);
     }
-  } else if (env.STATUSGATOR_API_KEY) {
+  } else if (credentials.statusGator) {
     try {
-      outages = await fetchStatusGatorOutages(env.STATUSGATOR_API_KEY);
+      outages = await fetchStatusGatorOutages(credentials.statusGator);
       fetchSuccessful = true;
     } catch (err) {
       console.error('Failed to fetch StatusGator outages, falling back:', err);
     }
   }
 
-  const hasKeys = !!(env.PINGDOM_API_KEY || env.STATUSGATOR_API_KEY);
+  const hasKeys = !!(credentials.pingdom || credentials.statusGator);
   const isSimulation = !hasKeys || simulateParam !== 'none' || !fetchSuccessful;
 
   if (isSimulation) {
@@ -119,7 +134,7 @@ async function handleGetOutages(env: Env, simulateParam: string): Promise<Respon
   const activeMode = isSimulation ? 'simulated' : 'live';
   const activeProvider = isSimulation 
     ? 'simulated' 
-    : (env.PINGDOM_API_KEY ? 'pingdom' : 'statusgator');
+    : (credentials.pingdom ? 'pingdom' : 'statusgator');
 
   return new Response(JSON.stringify(outages), {
     headers: {

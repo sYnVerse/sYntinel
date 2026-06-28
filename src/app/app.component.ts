@@ -57,21 +57,25 @@ export class AppComponent implements OnInit, OnDestroy {
   currentSimulation = 'none';
 
   dataLoaded = false;
-  apiMode: 'live' | 'simulated' | 'loading' = 'loading';
+  apiMode: 'live' | 'simulated' | 'loading' | 'unavailable' = 'loading';
   apiProvider = 'loading';
 
-  get appMode(): 'live' | 'simulated' | 'loading' {
+  get appMode(): 'live' | 'simulated' | 'loading' | 'unavailable' {
     return this.apiMode;
   }
 
   get modeLabel(): string {
     if (this.appMode === 'loading') return 'Loading';
+    if (this.appMode === 'unavailable') return 'API Unavailable';
     if (this.appMode === 'simulated') return 'Simulation Mode';
     return `Live: ${this.apiProvider.toUpperCase()}`;
   }
 
   get modeTooltip(): string {
     if (this.appMode === 'loading') return 'Fetching system outage data…';
+    if (this.appMode === 'unavailable') {
+      return 'Could not reach /api/outages. In local dev, run `npx wrangler dev` (port 8787) alongside `npm start`, or use `npm run preview`.';
+    }
     if (this.appMode === 'simulated') {
       if (this.currentSimulation !== 'none') {
         return 'Override active: Showing simulated disaster scenario (click Normal Simulation below to reset).';
@@ -190,7 +194,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  onOutagesCatalog(event: { outages: GlobeOutagePoint[]; mode: 'live' | 'simulated'; provider: string }): void {
+  onOutagesCatalog(event: { outages: GlobeOutagePoint[]; mode: 'live' | 'simulated' | 'unavailable'; provider: string }): void {
     this.allOutages = event.outages;
     this.apiMode = event.mode;
     this.apiProvider = event.provider;

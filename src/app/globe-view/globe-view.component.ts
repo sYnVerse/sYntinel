@@ -87,7 +87,7 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
   @Output() outageSelected = new EventEmitter<GlobeOutagePoint>();
   @Output() outagesCatalogChange = new EventEmitter<{
     outages: GlobeOutagePoint[];
-    mode: 'live' | 'simulated';
+    mode: 'live' | 'simulated' | 'unavailable';
     provider: string;
   }>();
 
@@ -331,9 +331,21 @@ export class GlobeViewComponent implements AfterViewInit, OnDestroy, OnChanges {
       ),
     );
     if (!this.alive) return;
-    const rows = response?.body || [];
-    const mode = (response?.headers.get('X-sYntinel-Mode') as 'live' | 'simulated') || 'simulated';
-    const provider = response?.headers.get('X-sYntinel-Provider') || 'simulated';
+    if (!response) {
+      if (isInitial) this.outagesInitialFetchCompleted = true;
+      this.outagePoints = [];
+      this.ngZone.run(() => this.outagesCatalogChange.emit({
+        outages: [],
+        mode: 'unavailable',
+        provider: 'unavailable',
+      }));
+      return;
+    }
+    const rows = response.body || [];
+    const mode =
+      (response.headers.get('X-sYntinel-Mode') as 'live' | 'simulated' | null) ||
+      'simulated';
+    const provider = response.headers.get('X-sYntinel-Provider') || 'simulated';
 
     this.outagePoints = this.outageDtosToPoints(rows);
     if (isInitial) this.outagesInitialFetchCompleted = true;
