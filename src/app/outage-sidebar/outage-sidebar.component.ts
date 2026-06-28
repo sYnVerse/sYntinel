@@ -32,21 +32,25 @@ export class OutageSidebarComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() allOutages: GlobeOutagePoint[] = [];
   @Input() currentSimulation = 'none';
   @Input() dataLoaded = false;
-  @Input() apiMode: 'live' | 'simulated' | 'loading' = 'loading';
+  @Input() apiMode: 'live' | 'simulated' | 'loading' | 'unavailable' = 'loading';
   @Input() apiProvider = 'loading';
 
-  get appMode(): 'live' | 'simulated' | 'loading' {
+  get appMode(): 'live' | 'simulated' | 'loading' | 'unavailable' {
     return this.apiMode;
   }
 
   get modeLabel(): string {
     if (this.appMode === 'loading') return 'Loading';
+    if (this.appMode === 'unavailable') return 'API Unavailable';
     if (this.appMode === 'simulated') return 'Simulation Mode';
     return `Live: ${this.apiProvider.toUpperCase()}`;
   }
 
   get modeExplanation(): string {
     if (this.appMode === 'loading') return 'Loading status data…';
+    if (this.appMode === 'unavailable') {
+      return 'Outage API unreachable — start the Cloudflare Worker (npx wrangler dev) or redeploy with API secrets configured';
+    }
     if (this.appMode === 'simulated') {
       if (this.currentSimulation !== 'none') {
         return 'Disaster preset override active';

@@ -130,6 +130,8 @@
         <div class="stream-search-dock-inner">
           @if (!dataLoaded) {
             <p class="stream-browse-empty">Checking system status…</p>
+          } @else if (appMode === 'unavailable') {
+            <p class="stream-browse-empty">Outage API unreachable. Start the worker with <code>npx wrangler dev</code> or configure Pingdom/StatusGator secrets for production.</p>
           } @else if (allOutages.length === 0) {
             <p class="stream-browse-empty">All systems operational. No active incidents detected.</p>
           } @else {

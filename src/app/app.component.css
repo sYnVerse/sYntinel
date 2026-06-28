@@ -147,6 +147,17 @@
   animation: mode-badge-pulse 1.8s ease-in-out infinite;
 }
 
+.app-mode-badge[data-mode="unavailable"] {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.04);
+  color: #f87171;
+}
+
+.app-mode-badge[data-mode="unavailable"] .mode-badge-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
 @keyframes mode-badge-pulse {
   0%, 100% {
     opacity: 1;

@@ -1,0 +1,5 @@
+# Copy to `.dev.vars` for local Wrangler dev (`npx wrangler dev`).
+# Either *_KEY or *_TOKEN works for each provider.
+
+# PINGDOM_API_KEY=your_pingdom_bearer_token
+# STATUSGATOR_API_KEY=your_statusgator_bearer_token

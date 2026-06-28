@@ -561,6 +561,20 @@
   animation: mode-badge-pulse 1.8s ease-in-out infinite;
 }
 
+.sidebar-mode-banner[data-mode="unavailable"] {
+  background: rgba(239, 68, 68, 0.04);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.sidebar-mode-banner[data-mode="unavailable"] .banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
 .banner-dot {
   flex-shrink: 0;
 }
