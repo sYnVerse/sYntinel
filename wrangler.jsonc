@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "syntinel",
+  "name": "lucent",
   "main": "src/workers.ts",
   "workers_dev": false,
   "preview_urls": false,
